@@ -27,6 +27,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          console.error('Auth: Missing email or password')
           return null
         }
 
@@ -45,13 +46,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           })
 
           if (!response.ok) {
-            console.error('Supabase auth failed:', response.status)
+            const errorData = await response.json()
+            console.error('Supabase auth failed:', {
+              status: response.status,
+              statusText: response.statusText,
+              error: errorData.error,
+              message: errorData.error_description || errorData.message
+            })
+            console.error('Debug - Supabase URL:', supabaseUrl)
+            console.error('Debug - API Key present:', !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)
+            console.error('Debug - Email:', credentials.email)
             return null
           }
 
           const data = await response.json()
           
           if (data.user) {
+            console.log('Auth: Successful login for', credentials.email)
             return {
               id: data.user.id,
               name: data.user.user_metadata?.name || data.user.email,
@@ -60,6 +71,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             }
           }
 
+          console.error('Auth: No user in response')
           return null
         } catch (error) {
           console.error('Auth error:', error)

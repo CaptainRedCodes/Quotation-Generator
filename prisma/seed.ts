@@ -15,7 +15,8 @@ async function main() {
   }
 
   const users = [
-    { email: 'admin@arinox.com', password: 'admin123', name: 'Admin User' }
+    { email: 'admin@arinox.com', password: 'admin123', name: 'Admin User' },
+    { email: 'test@gmail.com', password: 'Test@123', name: 'Test User' }
   ]
 
   for (const user of users) {
@@ -39,13 +40,17 @@ async function main() {
 
       if (response.ok) {
         const data = await response.json()
-        console.log(`Created user: ${user.email}`)
+        console.log(`✅ Created user: ${user.email}`)
+        console.log(`   User ID: ${data.id}`)
       } else {
         const error = await response.json()
-        console.log(`User ${user.email} may already exist or error: ${error.message}`)
+        console.log(`⚠️  User ${user.email} - ${error.message || 'Unknown error'}`)
+        if (error.message?.includes('already exists')) {
+          console.log(`   User already exists in Supabase Auth`)
+        }
       }
     } catch (error) {
-      console.error(`Error creating user ${user.email}:`, error)
+      console.error(`❌ Error creating user ${user.email}:`, error)
     }
   }
 
