@@ -35,39 +35,48 @@ DATABASE_URL=postgresql://postgres:[password]@db.gzcseefvrmmqymugtfjv.supabase.c
 npm install
 ```
 
-### 3. Push Schema to Database
+### 3. Push Schema to Database (REQUIRED - Do This First!)
+**This step is REQUIRED before running the app!**
+
+Run this command to create all the database tables:
 ```bash
-npx prisma db push
+npm run db:push
 ```
 
 This will:
 - Connect to your PostgreSQL database using DATABASE_URL
 - Create all the tables (User, CompanySettings, Product, etc.)
 - Set up relationships between tables
+- Make your database ready to use
+
+**If `npm run db:push` doesn't work**, you can manually run the SQL in your Supabase dashboard:
+1. Go to https://supabase.com and login to your project
+2. Click "SQL Editor" in the left sidebar
+3. Click "New Query"
+4. Copy the contents of `prisma/migrations/init/migration.sql`
+5. Paste it into the SQL editor
+6. Click "Run"
 
 ### 4. (Optional) Seed Database with Initial Data
 ```bash
-npx prisma db seed
+npm run db:seed
 ```
 
 This will:
-- Create a default admin user
+- Create a default admin user (can use for testing)
 - Create initial company settings
 - Create sample products with components
 
-### 5. Generate Prisma Client
-```bash
-npx prisma generate
-```
+**Default user created by seed:**
+- Email: `admin@arinox.com`
+- Password: `admin123`
 
-This regenerates the TypeScript types based on your schema.
-
-### 6. Start Development Server
+### 5. Start Development Server
 ```bash
 npm run dev
 ```
 
-The app should now run without the Prisma error!
+The app should now run without errors!
 
 ## Troubleshooting
 
