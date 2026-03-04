@@ -1,20 +1,18 @@
 # Quick Start Guide - Arinox Quote Generator
 
-## 🚀 TL;DR - Get Running in 2 Steps
+## 🚀 TL;DR - Get Running in 3 Steps
 
 ### Step 1: Create Database Tables
 ```bash
 npm run db:push
 ```
 
-**OR if that doesn't work:**
-1. Go to your Supabase project dashboard
-2. Open "SQL Editor"
-3. Click "New Query"
-4. Paste contents of `prisma/migrations/init/migration.sql`
-5. Click "Run"
+### Step 2: Seed Initial Data (Creates Admin User)
+```bash
+npm run db:seed
+```
 
-### Step 2: Start the App
+### Step 3: Start the App
 ```bash
 npm run dev
 ```
@@ -69,16 +67,21 @@ arinox-quote-generator/
 ## ⚙️ Environment Variables
 
 Your `.env` file contains:
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` - Public auth key
+- `SUPABASE_SERVICE_ROLE_KEY` - Server-side auth key (never expose to client)
 - `DATABASE_URL` - PostgreSQL connection string
 - `NEXTAUTH_URL` - Authentication URL
 - `NEXTAUTH_SECRET` - Session encryption secret
 - `RESEND_API_KEY` - (Optional) Email service API key
 
+> ℹ️ See `SUPABASE_AUTH_SETUP.md` for detailed Supabase Auth configuration
+
 ---
 
 ## 🎯 Features Implemented
 
-- ✅ User authentication with NextAuth
+- ✅ **Supabase Auth** - Secure user authentication with Supabase
 - ✅ Quotation management (create, edit, delete)
 - ✅ Product management with components
 - ✅ PDF generation and download
@@ -118,6 +121,7 @@ npm run dev
 
 ## 📚 Documentation
 
+- `SUPABASE_AUTH_SETUP.md` - Supabase Auth configuration and user management
 - `SETUP_INSTRUCTIONS.md` - Detailed setup guide
 - `IMPLEMENTATION_SUMMARY.md` - Features and changes
 - `prisma/schema.prisma` - Database structure
