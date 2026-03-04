@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
+}
+
+model CompanySettings {
+  id                String @id @default(cuid())
+  companyName       String
+  address           String
+  gstNo             String
+  panNo             String
+  emailFrom         String
+  termsConditions  String
+  signatureImageUrl String?
+}
+
+model Product {
+  id          String             @id @default(cuid())
+  name        String
+  description String?
+  active      Boolean            @default(true)
+  components  ProductComponent[]
+  createdAt   DateTime           @default(now())
+}
+
+model ProductComponent {
+  id            String  @id @default(cuid())
+  productId     String
+  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  componentName String
+  quantity      Int
+  unitPrice     Float
+  isEditable    Boolean @default(true)
+  sacCode       String?
+  sortOrder     Int     @default(0)
+}
+
+model Quotation {
+  id              String          @id @default(cuid())
+  quotationNo     String          @unique
+  date            DateTime        @default(now())
+  createdById     String
+  toCompanyName  String
+  toAddress       String
+  toGstNo         String?
+  toPhone         String?
+  toEmail         String?
+  subtotal        Float
+  gstPercent      Float           @default(18)
+  gstAmount       Float
+  totalAmount     Float
+  status          String          @default("draft")
+  notes           String?
+  termsConditions String?
+  items           QuotationItem[]
+  createdAt       DateTime        @default(now())
+}
+
+model QuotationItem {
+  id              String    @id @default(cuid())
+  quotationId     String
+  quotation       Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  componentName  String
+  sacCode        String?
+  quantity       Int
+  unitPrice      Float
+  totalPrice     Float
+  isProductHeader Boolean  @default(false)
+  sortOrder      Int       @default(0)
+}
