@@ -14,14 +14,7 @@ interface CompanySettings {
   termsConditions: string
 }
 
-interface User {
-  id: string
-  name: string
-  email: string
-  role: string
-}
-
-type Tab = 'company' | 'users' | 'templates' | 'email'
+type Tab = 'company' | 'account' | 'templates' | 'email'
 
 export default function SettingsPage() {
   const { data: session } = useSession()
@@ -42,9 +35,8 @@ export default function SettingsPage() {
     termsConditions: ''
   })
 
-  const [users, setUsers] = useState<User[]>([])
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [testEmailSending, setTestEmailSending] = useState(false)
 
   useEffect(() => {
@@ -59,7 +51,6 @@ export default function SettingsPage() {
       if (data.settings) {
         setSettings(data.settings)
       }
-      setUsers(data.users)
     } catch (error) {
       console.error('Error loading settings:', error)
     } finally {
@@ -132,7 +123,7 @@ export default function SettingsPage() {
 
   const tabs = [
     { id: 'company' as Tab, label: 'Company Details', icon: Building },
-    { id: 'users' as Tab, label: 'Users', icon: User },
+    { id: 'account' as Tab, label: 'Account', icon: User },
     { id: 'templates' as Tab, label: 'Templates', icon: FileText },
     { id: 'email' as Tab, label: 'Email', icon: Mail }
   ]
@@ -253,99 +244,90 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {activeTab === 'users' && (
+            {activeTab === 'account' && (
               <div className="space-y-4">
                 <p className="text-sm text-slate-600">
-                  Manage user accounts. Passwords must be at least 8 characters.
+                  Manage your account settings. Passwords must be at least 8 characters.
                 </p>
-                <div className="space-y-2">
-                  {users.map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center justify-between p-3 border border-slate-200 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium">{user.name}</p>
-                        <p className="text-sm text-slate-500">{user.email}</p>
-                      </div>
-                      {user.email !== session?.user?.email && (
-                        <button
-                          onClick={() => setSelectedUser(user)}
-                          className="text-sm text-blue-600 hover:text-blue-800"
-                        >
-                          Change Password
-                        </button>
-                      )}
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <h3 className="font-medium mb-4">Change Your Password</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        New Password
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="Enter new password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
                     </div>
-                  ))}
-                </div>
-
-                {selectedUser && (
-                  <div className="mt-4 p-4 bg-slate-50 rounded-lg">
-                    <h3 className="font-medium mb-2">Change Password for {selectedUser.name}</h3>
-                    <input
-                      type="password"
-                      placeholder="New Password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
-                    />
-                     <div className="flex gap-2">
-                       <button
-                         onClick={async () => {
-                           if (!newPassword || newPassword.length < 8) {
-                             setError('Password must be at least 8 characters')
-                             return
-                           }
-                           
-                           setChangingPassword(true)
-                           setError(null)
-                           setSuccess(null)
-                           
-                           try {
-                             const res = await fetch('/api/settings', {
-                               method: 'POST',
-                               headers: { 'Content-Type': 'application/json' },
-                               body: JSON.stringify({
-                                 userId: selectedUser.id,
-                                 password: newPassword
-                               })
-                             })
-
-                             if (res.ok) {
-                               setSuccess(`Password updated successfully for ${selectedUser.name}`)
-                               setSelectedUser(null)
-                               setNewPassword('')
-                               setTimeout(() => setSuccess(null), 3000)
-                             } else {
-                               const data = await res.json()
-                               setError(data.error || 'Failed to update password')
-                             }
-                           } catch (error) {
-                             console.error('Error updating password:', error)
-                             setError(error instanceof Error ? error.message : 'Failed to update password')
-                           } finally {
-                             setChangingPassword(false)
-                           }
-                         }}
-                         disabled={changingPassword}
-                         className="px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800 disabled:opacity-50 flex items-center gap-2"
-                       >
-                         {changingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
-                         Update Password
-                       </button>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Confirm Password
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="Confirm new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex gap-2">
                       <button
-                        onClick={() => {
-                          setSelectedUser(null)
-                          setNewPassword('')
+                        onClick={async () => {
+                          setError(null)
+                          setSuccess(null)
+
+                          if (!newPassword || newPassword.length < 8) {
+                            setError('Password must be at least 8 characters')
+                            return
+                          }
+
+                          if (newPassword !== confirmPassword) {
+                            setError('Passwords do not match')
+                            return
+                          }
+                          
+                          setChangingPassword(true)
+                          
+                          try {
+                            const res = await fetch('/api/settings', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                newPassword
+                              })
+                            })
+
+                            if (res.ok) {
+                              setSuccess('Password updated successfully!')
+                              setNewPassword('')
+                              setConfirmPassword('')
+                              setTimeout(() => setSuccess(null), 3000)
+                            } else {
+                              const data = await res.json()
+                              setError(data.error || 'Failed to update password')
+                            }
+                          } catch (error) {
+                            console.error('Error updating password:', error)
+                            setError(error instanceof Error ? error.message : 'Failed to update password')
+                          } finally {
+                            setChangingPassword(false)
+                          }
                         }}
-                        className="px-4 py-2 border border-slate-300 rounded-md hover:bg-slate-50"
+                        disabled={changingPassword}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800 disabled:opacity-50"
                       >
-                        Cancel
+                        {changingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
+                        Update Password
                       </button>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
 
