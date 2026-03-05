@@ -127,10 +127,18 @@ export async function DELETE(
   try {
     const { id } = await params
     
-    await db.invoice.update({
-      where: { id },
-      data: { quotation: { update: { invoiceId: null, status: 'sent' } } }
-    })
+    // Try to clear quotation reference if it exists
+    try {
+      const invoice = await db.invoice.findUnique({ where: { id } })
+      if (invoice) {
+        await db.quotation.updateMany({
+          where: { invoiceId: id },
+          data: { invoiceId: null, status: 'sent' }
+        })
+      }
+    } catch (e) {
+      // Ignore if relation doesn't exist
+    }
 
     await db.invoice.delete({ where: { id } })
     
