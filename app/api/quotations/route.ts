@@ -1,17 +1,28 @@
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { generateQuotationNo } from '@/lib/utils'
 import { createQuotationSchema } from '@/lib/validators'
 import { APP_CONFIG } from '@/lib/constants'
+import {
+  requireAuth,
+  isAuthError,
+  requireOrgEmployee,
+  isForbidden,
+  requireOrgIdFromHeaders,
+} from '@/lib/authorization'
 
-export async function GET() {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+export async function GET(request: Request) {
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   const quotations = await db.quotation.findMany({
+    where: { organizationId: orgId },
     include: {
       items: {
         orderBy: { sortOrder: 'asc' }
@@ -24,10 +35,14 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   try {
     const body = await request.json()
@@ -44,6 +59,7 @@ export async function POST(request: Request) {
     const { toCompanyName, toAddress, toGstNo, toPhone, toEmail, items, termsConditions } = validation.data
 
     const lastQuotation = await db.quotation.findFirst({
+      where: { organizationId: orgId },
       orderBy: { quotationNo: 'desc' }
     })
 
@@ -62,8 +78,9 @@ export async function POST(request: Request) {
 
     const quotation = await db.quotation.create({
       data: {
+        organizationId: orgId,
+        createdByUserId: authResult.userId,
         quotationNo,
-        createdById: session.user?.id || '',
         toCompanyName,
         toAddress,
         toGstNo: toGstNo || null,

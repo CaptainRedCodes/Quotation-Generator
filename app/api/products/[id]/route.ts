@@ -1,21 +1,31 @@
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { updateProductSchema } from '@/lib/validators'
+import {
+  requireAuth,
+  isAuthError,
+  requireOrgEmployee,
+  isForbidden,
+  requireOrgIdFromHeaders,
+} from '@/lib/authorization'
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   const { id } = await params
 
-  const product = await db.product.findUnique({
-    where: { id },
+  const product = await db.product.findFirst({
+    where: { id, organizationId: orgId },
     include: {
       components: {
         orderBy: { sortOrder: 'asc' }
@@ -34,10 +44,14 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   try {
     const { id } = await params
@@ -50,6 +64,14 @@ export async function PUT(
         { error: 'Invalid request', details: validation.error.flatten() },
         { status: 400 }
       )
+    }
+
+    // Verify product belongs to this org
+    const existing = await db.product.findFirst({
+      where: { id, organizationId: orgId },
+    })
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
     const { name, description, active, components } = validation.data
@@ -96,13 +118,25 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   try {
     const { id } = await params
+
+    // Verify product belongs to this org
+    const existing = await db.product.findFirst({
+      where: { id, organizationId: orgId },
+    })
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
 
     await db.product.delete({
       where: { id }

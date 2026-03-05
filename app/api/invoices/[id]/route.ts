@@ -1,30 +1,40 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { auth } from '@/lib/auth'
 import { updateInvoiceSchema } from '@/lib/validators'
+import {
+  requireAuth,
+  isAuthError,
+  requireOrgEmployee,
+  isForbidden,
+  requireOrgIdFromHeaders,
+} from '@/lib/authorization'
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   try {
     const { id } = await params
-    const invoice = await db.invoice.findUnique({
-      where: { id },
+    const invoice = await db.invoice.findFirst({
+      where: { id, organizationId: orgId },
       include: {
         items: { orderBy: { sortOrder: 'asc' } }
       }
     })
-    
+
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
-    
+
     return NextResponse.json(invoice)
   } catch (error) {
     console.error('Error fetching invoice:', error)
@@ -36,13 +46,26 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   try {
     const { id } = await params
+
+    // Verify invoice belongs to this org
+    const existing = await db.invoice.findFirst({
+      where: { id, organizationId: orgId },
+    })
+    if (!existing) {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
     const body = await request.json()
 
     // For status-only updates, use simpler validation
@@ -62,7 +85,7 @@ export async function PUT(
       )
     }
 
-      const { invoiceNo, invoiceDate, toCompanyName, toAddress, toGstNo, toPhone, toEmail, subtotal, discountType, discountValue, discountAmount, gstPercent, gstAmount, totalAmount, status, notes, termsConditions, items } = validation.data
+    const { invoiceNo, invoiceDate, toCompanyName, toAddress, toGstNo, toPhone, toEmail, subtotal, discountType, discountValue, discountAmount, gstPercent, gstAmount, totalAmount, status, notes, termsConditions, items } = validation.data
 
     // Only delete and recreate items if items are provided
     if (items && items.length > 0) {
@@ -119,29 +142,38 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   try {
     const { id } = await params
-    
+
+    // Verify invoice belongs to this org
+    const existing = await db.invoice.findFirst({
+      where: { id, organizationId: orgId },
+    })
+    if (!existing) {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
     // Try to clear quotation reference if it exists
     try {
-      const invoice = await db.invoice.findUnique({ where: { id } })
-      if (invoice) {
-        await db.quotation.updateMany({
-          where: { invoiceId: id },
-          data: { invoiceId: null, status: 'sent' }
-        })
-      }
-    } catch (e) {
+      await db.quotation.updateMany({
+        where: { invoiceId: id, organizationId: orgId },
+        data: { invoiceId: null, status: 'sent' }
+      })
+    } catch {
       // Ignore if relation doesn't exist
     }
 
     await db.invoice.delete({ where: { id } })
-    
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting invoice:', error)

@@ -7,26 +7,65 @@ datasource db {
   url      = env("POSTGRES_PRISMA_URL")
 }
 
+enum OrgRole {
+  ORG_ADMIN
+  EMPLOYEE
+}
+
+model Organization {
+  id          String                   @id @default(cuid())
+  name        String
+  createdAt   DateTime                 @default(now())
+  memberships OrganizationMembership[]
+  quotations  Quotation[]
+  invoices    Invoice[]
+  products    Product[]
+  settings    CompanySettings[]
+}
+
+model OrganizationMembership {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           OrgRole
+  createdAt      DateTime     @default(now())
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
 model CompanySettings {
-  id                String @id @default(cuid())
+  id                String       @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUserId   String
   companyName       String
   address           String
   gstNo             String
   panNo             String
   cinNo             String?
   msmeNo            String?
-  emailFrom         String
+  emailFrom         String    @default("onboarding@resend.dev")
   termsConditions   String
   signatureImageUrl String?
+
+  @@index([organizationId])
 }
 
 model Product {
-  id          String             @id @default(cuid())
-  name        String
-  description String?
-  active      Boolean            @default(true)
-  components  ProductComponent[]
-  createdAt   DateTime           @default(now())
+  id              String             @id @default(cuid())
+  organizationId  String
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUserId String
+  name            String
+  description     String?
+  active          Boolean            @default(true)
+  components      ProductComponent[]
+  createdAt       DateTime           @default(now())
+
+  @@index([organizationId])
 }
 
 model ProductComponent {
@@ -43,9 +82,11 @@ model ProductComponent {
 
 model Quotation {
   id              String          @id @default(cuid())
+  organizationId  String
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUserId String
   quotationNo     String          @unique
   date            DateTime        @default(now())
-  createdById     String
 
   toCompanyName   String
   toAddress       String
@@ -73,6 +114,8 @@ model Quotation {
 
   createdAt       DateTime        @default(now())
   updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([organizationId])
 }
 
 model QuotationItem {
@@ -92,6 +135,9 @@ model QuotationItem {
 
 model Invoice {
   id              String          @id @default(cuid())
+  organizationId  String
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUserId String
   invoiceNo       String          @unique
   invoiceDate     DateTime        @default(now())
 
@@ -119,6 +165,8 @@ model Invoice {
   items           InvoiceItem[]
 
   createdAt       DateTime        @default(now())
+
+  @@index([organizationId])
 }
 
 model InvoiceItem {

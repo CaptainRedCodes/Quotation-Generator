@@ -1,24 +1,34 @@
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { APP_CONFIG } from '@/lib/constants'
+import {
+  requireAuth,
+  isAuthError,
+  requireOrgEmployee,
+  isForbidden,
+  requireOrgIdFromHeaders,
+} from '@/lib/authorization'
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   try {
     const { id } = await params
     const body = await request.json()
     const { invoiceNo, invoiceDate, notes } = body
 
-    const quotation = await db.quotation.findUnique({
-      where: { id },
+    const quotation = await db.quotation.findFirst({
+      where: { id, organizationId: orgId },
       include: {
         items: {
           orderBy: { sortOrder: 'asc' }
@@ -37,6 +47,7 @@ export async function POST(
 
     // Generate invoice number
     const lastInvoice = await db.invoice.findFirst({
+      where: { organizationId: orgId },
       orderBy: { createdAt: 'desc' }
     })
     const nextNo = lastInvoice ? parseInt(lastInvoice.invoiceNo.replace('INV-', '')) + 1 : 1
@@ -45,6 +56,8 @@ export async function POST(
     // Create invoice from quotation data
     const invoice = await db.invoice.create({
       data: {
+        organizationId: orgId,
+        createdByUserId: authResult.userId,
         invoiceNo: invoiceNumber,
         invoiceDate: invoiceDate ? new Date(invoiceDate) : new Date(),
         toCompanyName: quotation.toCompanyName,

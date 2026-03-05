@@ -6,6 +6,7 @@ import { useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import NavBar from '@/components/NavBar'
 import Breadcrumb from '@/components/Breadcrumb'
+import { OrgProvider } from '@/components/OrgContext'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { status } = useSession()
@@ -22,10 +23,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (status !== 'authenticated') return null
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <NavBar />
-      <Breadcrumb />
-      {children}
-    </div>
+    <OrgProvider>
+      <div className="min-h-screen bg-gray-50">
+        <NavBar />
+        <Breadcrumb />
+        {children}
+      </div>
+    </OrgProvider>
   )
 }

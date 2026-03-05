@@ -7,6 +7,7 @@ import { Loader2, Plus, Trash2, Save, FileDown, Mail, X, AlertCircle, ArrowLeft 
 import { formatIndianCurrency, amountToWords, generateQuotationNo, formatDate } from '@/lib/utils'
 import { EmailModal } from '@/components/EmailModal'
 import Link from 'next/link'
+import { useOrg } from '@/components/OrgContext'
 
 interface Product {
   id: string
@@ -36,6 +37,7 @@ interface QuotationItem {
 export default function NewQuotationPage() {
   const router = useRouter()
   const { data: session } = useSession()
+  const { orgFetch } = useOrg()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -63,8 +65,8 @@ export default function NewQuotationPage() {
     async function loadData() {
       try {
         const [productsRes, settingsRes] = await Promise.all([
-          fetch('/api/products'),
-          fetch('/api/settings')
+          orgFetch('/api/products'),
+          orgFetch('/api/settings')
         ])
         const productsData = await productsRes.json()
         const settingsData = await settingsRes.json()
@@ -75,7 +77,7 @@ export default function NewQuotationPage() {
             termsConditions: settingsData.settings.termsConditions || ''
           }))
         }
-        const lastQuotationRes = await fetch('/api/quotations')
+        const lastQuotationRes = await orgFetch('/api/quotations')
         const quotations = await lastQuotationRes.json()
         const lastNo = quotations.length > 0 ? quotations[0].quotationNo : null
         setFormData(prev => ({
@@ -178,7 +180,7 @@ export default function NewQuotationPage() {
     try {
       const validItems = items.filter(item => item.isProductHeader || item.componentName)
 
-      const res = await fetch('/api/quotations', {
+      const res = await orgFetch('/api/quotations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -209,7 +211,7 @@ export default function NewQuotationPage() {
     setDownloading(true)
     setError(null)
     try {
-      const pdfRes = await fetch('/api/pdf/generate', {
+      const pdfRes = await orgFetch('/api/pdf/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quotationId: savedQuotationId })

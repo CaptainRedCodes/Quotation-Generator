@@ -1,28 +1,45 @@
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { updateSettingsSchema, changePasswordSchema } from '@/lib/validators'
+import { APP_CONFIG } from '@/lib/constants'
+import {
+  requireAuth,
+  isAuthError,
+  requireOrgEmployee,
+  isForbidden,
+  requireOrgIdFromHeaders,
+} from '@/lib/authorization'
 
-export async function GET() {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+export async function GET(request: Request) {
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
 
-  const settings = await db.companySettings.findFirst()
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
+
+  const settings = await db.companySettings.findFirst({
+    where: { organizationId: orgId },
+  })
 
   return NextResponse.json({ settings })
 }
 
 export async function PUT(request: Request) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   try {
     const body = await request.json()
-    
+
     // Validate request body
     const validation = updateSettingsSchema.safeParse(body)
     if (!validation.success) {
@@ -32,32 +49,45 @@ export async function PUT(request: Request) {
       )
     }
 
-    const { companyName, address, gstNo, panNo, cinNo, msmeNo, emailFrom, termsConditions } = validation.data
+    const { companyName, address, gstNo, panNo, cinNo, msmeNo, termsConditions } = validation.data
+    const emailFrom = validation.data.emailFrom || APP_CONFIG.defaultEmailFrom
 
-    const settings = await db.companySettings.upsert({
-      where: { id: 'default' },
-      update: {
-        companyName,
-        address,
-        gstNo,
-        panNo,
-        cinNo,
-        msmeNo,
-        emailFrom,
-        termsConditions: termsConditions || ''
-      },
-      create: {
-        id: 'default',
-        companyName,
-        address,
-        gstNo,
-        panNo,
-        cinNo,
-        msmeNo,
-        emailFrom,
-        termsConditions: termsConditions || ''
-      }
+    // Find existing settings for this org
+    const existing = await db.companySettings.findFirst({
+      where: { organizationId: orgId },
     })
+
+    let settings
+    if (existing) {
+      settings = await db.companySettings.update({
+        where: { id: existing.id },
+        data: {
+          companyName,
+          address,
+          gstNo,
+          panNo,
+          cinNo,
+          msmeNo,
+          emailFrom,
+          termsConditions: termsConditions || ''
+        }
+      })
+    } else {
+      settings = await db.companySettings.create({
+        data: {
+          organizationId: orgId,
+          createdByUserId: authResult.userId,
+          companyName,
+          address,
+          gstNo,
+          panNo,
+          cinNo,
+          msmeNo,
+          emailFrom,
+          termsConditions: termsConditions || ''
+        }
+      })
+    }
 
     return NextResponse.json(settings)
   } catch (error) {
@@ -67,10 +97,8 @@ export async function PUT(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
 
   try {
     const body = await request.json()
@@ -94,7 +122,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
     }
 
-    const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${session.user.id}`, {
+    const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${authResult.userId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

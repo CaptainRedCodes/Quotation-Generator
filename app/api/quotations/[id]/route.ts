@@ -1,8 +1,14 @@
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { updateQuotationSchema } from '@/lib/validators'
 import { APP_CONFIG } from '@/lib/constants'
+import {
+  requireAuth,
+  isAuthError,
+  requireOrgEmployee,
+  isForbidden,
+  requireOrgIdFromHeaders,
+} from '@/lib/authorization'
 
 const VALID_STATUSES = ['draft', 'sent', 'accepted'] as const
 
@@ -10,15 +16,19 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   const { id } = await params
 
-  const quotation = await db.quotation.findUnique({
-    where: { id },
+  const quotation = await db.quotation.findFirst({
+    where: { id, organizationId: orgId },
     include: {
       items: {
         orderBy: { sortOrder: 'asc' }
@@ -37,10 +47,14 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   try {
     const { id } = await params
@@ -53,6 +67,14 @@ export async function PUT(
         { error: 'Invalid request', details: validation.error.flatten() },
         { status: 400 }
       )
+    }
+
+    // Verify quotation belongs to this org
+    const existing = await db.quotation.findFirst({
+      where: { id, organizationId: orgId },
+    })
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
     const { toCompanyName, toAddress, toGstNo, toPhone, toEmail, items, termsConditions, status, quotationNo, date, discountType, discountValue } = validation.data
@@ -72,8 +94,8 @@ export async function PUT(
       }
     })
 
-    const discountAmount = discountType === 'percentage' 
-      ? subtotal * ((discountValue || 0) / 100) 
+    const discountAmount = discountType === 'percentage'
+      ? subtotal * ((discountValue || 0) / 100)
       : (discountValue || 0)
     const afterDiscount = subtotal - discountAmount
     const gstPercent = APP_CONFIG.defaultGstPercent / 100
@@ -132,13 +154,25 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   try {
     const { id } = await params
+
+    // Verify quotation belongs to this org
+    const existing = await db.quotation.findFirst({
+      where: { id, organizationId: orgId },
+    })
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
 
     await db.quotation.delete({
       where: { id }

@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { Loader2, Plus, Search, Eye, FileDown, Trash2, FileText, Receipt, AlertCircle } from 'lucide-react'
+import { Loader2, Plus, Search, Eye, FileDown, Trash2, FileText, Receipt, AlertCircle, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { formatIndianCurrency, formatDate } from '@/lib/utils'
+import { useOrg } from '@/components/OrgContext'
 
 interface Quotation {
   id: string
@@ -28,6 +29,7 @@ interface Invoice {
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { activeOrg, userRole, loading: orgLoading, orgFetch } = useOrg()
   const [activeTab, setActiveTab] = useState<'quotations' | 'invoices'>('quotations')
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -39,29 +41,38 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
-    else if (status === 'authenticated') loadData()
   }, [status, router])
 
+  useEffect(() => {
+    if (status === 'authenticated' && activeOrg && userRole === 'EMPLOYEE') {
+      loadData()
+    } else if (status === 'authenticated' && !orgLoading) {
+      setLoading(false)
+    }
+  }, [status, activeOrg, userRole, orgLoading])
+
   async function loadData() {
+    if (!activeOrg) return
+    setLoading(true)
     try {
       const [qRes, iRes, sRes] = await Promise.all([
-        fetch('/api/quotations'),
-        fetch('/api/invoices'),
-        fetch('/api/settings')
+        orgFetch('/api/quotations'),
+        orgFetch('/api/invoices'),
+        orgFetch('/api/settings')
       ])
-      
+
       const qData = qRes.ok ? await qRes.json() : []
       const iData = iRes.ok ? await iRes.json() : []
       const sData = sRes.ok ? await sRes.json() : null
-      
+
       if (!qRes.ok) console.error('Failed to fetch quotations:', qRes.status)
       if (!iRes.ok) console.error('Failed to fetch invoices:', iRes.status)
-      
+
       setQuotations(qData)
       setInvoices(iData)
       filterQuotations(qData, '')
       filterInvoices(iData, '')
-      
+
       if (!sData?.settings?.companyName) {
         setSettingsMissing(true)
       }
@@ -96,7 +107,7 @@ export default function DashboardPage() {
 
   const downloadPDF = async (id: string, no: string, type: 'quotation' | 'invoice') => {
     const url = type === 'quotation' ? '/api/pdf/generate' : '/api/pdf/generate-invoice'
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [type + 'Id']: id }) })
+    const res = await orgFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [type + 'Id']: id }) })
     if (!res.ok) return alert('Failed')
     const blob = await res.blob()
     const a = document.createElement('a')
@@ -107,7 +118,7 @@ export default function DashboardPage() {
 
   const del = async (id: string, type: 'quotation' | 'invoice') => {
     if (!confirm('Delete?')) return
-    const res = await fetch(`/api/${type}s/${id}`, { method: 'DELETE' })
+    const res = await orgFetch(`/api/${type}s/${id}`, { method: 'DELETE' })
     if (!res.ok) return alert('Failed')
     if (type === 'quotation') {
       setQuotations(quotations.filter(q => q.id !== id))
@@ -118,7 +129,32 @@ export default function DashboardPage() {
     }
   }
 
-  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>
+  if (loading || orgLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>
+
+  // No org selected or user is admin
+  if (!activeOrg) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <main className="max-w-4xl mx-auto px-4 py-12 text-center">
+          <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <h2 className="text-lg font-medium text-gray-900 mb-1">No organization selected</h2>
+          <p className="text-sm text-gray-500 mb-4">Select or create an organization to get started.</p>
+          <Link href="/dashboard/organizations" className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white text-sm rounded-md hover:bg-gray-800">
+            Go to Organizations
+          </Link>
+        </main>
+      </div>
+    )
+  }
+
+  if (userRole === 'ORG_ADMIN') {
+    router.replace('/dashboard/organizations')
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin" />
+      </div>
+    )
+  }
 
   const tabs = [
     { id: 'quotations' as const, label: 'Quotations', icon: FileText },
@@ -155,9 +191,8 @@ export default function DashboardPage() {
               <button
                 key={t.id}
                 onClick={() => { setActiveTab(t.id); setSearchTerm('') }}
-                className={`flex items-center gap-2 px-4 py-3 text-sm border-b-2 -mb-px ${
-                  activeTab === t.id ? 'border-black text-black' : 'border-transparent text-gray-500'
-                }`}
+                className={`flex items-center gap-2 px-4 py-3 text-sm border-b-2 -mb-px ${activeTab === t.id ? 'border-black text-black' : 'border-transparent text-gray-500'
+                  }`}
               >
                 <t.icon className="w-4 h-4" /> {t.label}
               </button>
@@ -198,10 +233,9 @@ export default function DashboardPage() {
                         <td className="px-4 py-2">{q.toCompanyName}</td>
                         <td className="px-4 py-2 font-medium">₹{formatIndianCurrency(q.totalAmount)}</td>
                         <td className="px-4 py-2">
-                          <span className={`px-2 py-0.5 text-xs rounded-full ${
-                            q.status === 'sent' ? 'bg-green-100 text-green-700' :
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${q.status === 'sent' ? 'bg-green-100 text-green-700' :
                             q.status === 'accepted' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
-                          }`}>{q.status}</span>
+                            }`}>{q.status}</span>
                         </td>
                         <td className="px-4 py-2">
                           <div className="flex gap-2">
@@ -224,10 +258,9 @@ export default function DashboardPage() {
                         <td className="px-4 py-2">{i.toCompanyName}</td>
                         <td className="px-4 py-2 font-medium">₹{formatIndianCurrency(i.totalAmount)}</td>
                         <td className="px-4 py-2">
-                          <span className={`px-2 py-0.5 text-xs rounded-full ${
-                            i.status === 'paid' ? 'bg-green-100 text-green-700' :
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${i.status === 'paid' ? 'bg-green-100 text-green-700' :
                             i.status === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
-                          }`}>{i.status}</span>
+                            }`}>{i.status}</span>
                         </td>
                         <td className="px-4 py-2">
                           <div className="flex gap-2">

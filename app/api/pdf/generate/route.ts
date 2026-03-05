@@ -1,14 +1,24 @@
-import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { generatePDF } from '@/lib/pdf'
 import { generatePdfSchema } from '@/lib/validators'
+import {
+  requireAuth,
+  isAuthError,
+  requireOrgEmployee,
+  isForbidden,
+  requireOrgIdFromHeaders,
+} from '@/lib/authorization'
 
 export async function POST(request: Request) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   try {
     const body = await request.json()
@@ -24,8 +34,8 @@ export async function POST(request: Request) {
 
     const { quotationId } = validation.data
 
-    const quotation = await db.quotation.findUnique({
-      where: { id: quotationId },
+    const quotation = await db.quotation.findFirst({
+      where: { id: quotationId, organizationId: orgId },
       include: {
         items: {
           orderBy: { sortOrder: 'asc' }
@@ -37,8 +47,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Quotation not found' }, { status: 404 })
     }
 
-    const settings = await db.companySettings.findFirst()
-    
+    const settings = await db.companySettings.findFirst({
+      where: { organizationId: orgId },
+    })
+
     if (!settings) {
       return NextResponse.json({ error: 'Company settings not found' }, { status: 404 })
     }

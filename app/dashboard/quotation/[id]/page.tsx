@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { formatIndianCurrency, formatDate } from '@/lib/utils'
 import { APP_CONFIG } from '@/lib/constants'
 import { EmailModal } from '@/components/EmailModal'
+import { useOrg } from '@/components/OrgContext'
 
 interface QuotationItem {
   id: string
@@ -46,6 +47,7 @@ export default function QuotationPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const params = useParams()
+  const { orgFetch } = useOrg()
   const [quotation, setQuotation] = useState<Quotation | null>(null)
   const [loading, setLoading] = useState(true)
   const [showComponents, setShowComponents] = useState(true)
@@ -60,7 +62,7 @@ export default function QuotationPage() {
 
   async function loadQuotation() {
     try {
-      const res = await fetch(`/api/quotations/${params.id}`)
+      const res = await orgFetch(`/api/quotations/${params.id}`)
       if (res.ok) {
         const data = await res.json()
         setQuotation(data)
@@ -76,7 +78,7 @@ export default function QuotationPage() {
     if (!quotation) return
     setCreatingInvoice(true)
     try {
-      const res = await fetch(`/api/quotations/${params.id}/create-invoice`, {
+      const res = await orgFetch(`/api/quotations/${params.id}/create-invoice`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invoiceNo: invoiceNo || undefined })
@@ -98,7 +100,7 @@ export default function QuotationPage() {
 
   const downloadPDF = async () => {
     if (!quotation) return
-    const res = await fetch('/api/pdf/generate', {
+    const res = await orgFetch('/api/pdf/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ quotationId: quotation.id })
@@ -113,7 +115,7 @@ export default function QuotationPage() {
 
   const deleteQuotation = async () => {
     if (!quotation || !confirm('Delete this quotation?')) return
-    const res = await fetch(`/api/quotations/${quotation.id}`, { method: 'DELETE' })
+    const res = await orgFetch(`/api/quotations/${quotation.id}`, { method: 'DELETE' })
     if (res.ok) router.push('/dashboard')
   }
 
@@ -130,9 +132,8 @@ export default function QuotationPage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <h1 className="text-xl font-semibold">Quotation {quotation.quotationNo}</h1>
-          <span className={`px-2 py-1 text-xs rounded ${
-            quotation.status === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-          }`}>
+          <span className={`px-2 py-1 text-xs rounded ${quotation.status === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+            }`}>
             {quotation.status.toUpperCase()}
           </span>
         </div>
@@ -143,9 +144,9 @@ export default function QuotationPage() {
               <h2 className="font-semibold mb-4">Client Details</h2>
               <p className="font-medium">{quotation.toCompanyName}</p>
               <p className="text-sm text-gray-600 whitespace-pre-wrap">{quotation.toAddress}</p>
-              {quotation.toGstNo  && <p className="text-sm mt-2">GST: {quotation.toGstNo}</p>}
-              {quotation.toPhone  && <p className="text-sm">Phone: {quotation.toPhone}</p>}
-              {quotation.toEmail  && <p className="text-sm">Email: {quotation.toEmail}</p>}
+              {quotation.toGstNo && <p className="text-sm mt-2">GST: {quotation.toGstNo}</p>}
+              {quotation.toPhone && <p className="text-sm">Phone: {quotation.toPhone}</p>}
+              {quotation.toEmail && <p className="text-sm">Email: {quotation.toEmail}</p>}
             </div>
 
             <div className="bg-white rounded-lg shadow p-6">

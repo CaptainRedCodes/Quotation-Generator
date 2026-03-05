@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Loader2, Plus, Pencil, Trash2, X, Package, AlertCircle } from 'lucide-react'
+import { useOrg } from '@/components/OrgContext'
 
 interface Product {
   id: string
@@ -21,6 +22,7 @@ interface ProductComponent {
 }
 
 export default function ProductsPage() {
+  const { orgFetch } = useOrg()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,7 +45,7 @@ export default function ProductsPage() {
   async function loadProducts() {
     try {
       setError(null)
-      const res = await fetch('/api/products')
+      const res = await orgFetch('/api/products')
       if (!res.ok) throw new Error('Failed to load products')
       const data = await res.json()
       setProducts(data)
@@ -128,7 +130,7 @@ export default function ProductsPage() {
       const url = editingProduct ? `/api/products/${editingProduct.id}` : '/api/products'
       const method = editingProduct ? 'PUT' : 'POST'
 
-      const res = await fetch(url, {
+      const res = await orgFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -157,7 +159,7 @@ export default function ProductsPage() {
     setError(null)
     setSuccess(null)
     try {
-      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' })
+      const res = await orgFetch(`/api/products/${id}`, { method: 'DELETE' })
       if (res.ok) {
         setSuccess('Product deleted successfully!')
         await loadProducts()
@@ -176,12 +178,12 @@ export default function ProductsPage() {
     setError(null)
     setSuccess(null)
     try {
-      const res = await fetch(`/api/products/${product.id}`, {
+      const res = await orgFetch(`/api/products/${product.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...product, active: !product.active })
       })
-      
+
       if (res.ok) {
         setSuccess(`Product ${!product.active ? 'activated' : 'deactivated'} successfully!`)
         await loadProducts()
@@ -219,13 +221,13 @@ export default function ProductsPage() {
             <p className="text-red-800 text-sm">{error}</p>
           </div>
         )}
-        
+
         {success && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
             <p className="text-green-800 text-sm">{success}</p>
           </div>
         )}
-        
+
         <div className="space-y-4">
           {products.length === 0 ? (
             <div className="bg-white rounded-lg shadow border border-slate-200 p-8 text-center">
@@ -238,11 +240,10 @@ export default function ProductsPage() {
                 <div className="p-4 border-b border-slate-200 flex justify-between items-center">
                   <div className="flex items-center gap-3">
                     <h2 className="text-lg font-semibold">{product.name}</h2>
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      product.active 
-                        ? 'bg-green-100 text-green-800' 
+                    <span className={`px-2 py-1 text-xs rounded-full ${product.active
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-slate-100 text-slate-600'
-                    }`}>
+                      }`}>
                       {product.active ? 'Active' : 'Inactive'}
                     </span>
                   </div>

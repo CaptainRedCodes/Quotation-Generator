@@ -2,14 +2,24 @@
 import { NextResponse } from 'next/server'
 import PDFDocument from 'pdfkit'
 import { db } from '@/lib/db'
-import { auth } from '@/lib/auth'
 import { generateInvoicePdfSchema } from '@/lib/validators'
+import {
+  requireAuth,
+  isAuthError,
+  requireOrgEmployee,
+  isForbidden,
+  requireOrgIdFromHeaders,
+} from '@/lib/authorization'
 
 export async function POST(request: Request) {
-  const session = await auth()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authResult = await requireAuth()
+  if (isAuthError(authResult)) return authResult
+
+  const orgId = requireOrgIdFromHeaders(request)
+  if (orgId instanceof NextResponse) return orgId
+
+  const memberCheck = await requireOrgEmployee(authResult.userId, orgId)
+  if (isForbidden(memberCheck)) return memberCheck
 
   try {
     const body = await request.json()
@@ -24,8 +34,8 @@ export async function POST(request: Request) {
 
     const { invoiceId } = validation.data
 
-    const invoice = await db.invoice.findUnique({
-      where: { id: invoiceId },
+    const invoice = await db.invoice.findFirst({
+      where: { id: invoiceId, organizationId: orgId },
       include: {
         items: { orderBy: { sortOrder: 'asc' } }
       }
@@ -35,7 +45,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
 
-    const settings = await db.companySettings.findFirst()
+    const settings = await db.companySettings.findFirst({
+      where: { organizationId: orgId },
+    })
 
     const doc = new PDFDocument({ margin: 30 })
     const chunks: Buffer[] = []
@@ -136,13 +148,13 @@ export async function POST(request: Request) {
       doc.text(invoice.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 30 + subtotalWidth + valueWidth, totalY + 4, { width: valueWidth, align: 'right' })
 
       if (invoice.discountAmount && invoice.discountAmount > 0) {
-        const discountLabel = invoice.discountType === 'percentage' 
+        const discountLabel = invoice.discountType === 'percentage'
           ? `Discount (${invoice.discountValue}%)`
           : 'Discount'
         doc.rect(30 + subtotalWidth, totalY + 16, valueWidth, 16).stroke()
         doc.fontSize(8).text(discountLabel, 40 + subtotalWidth + 3, totalY + 20, { width: valueWidth - 6, align: 'left' })
         doc.text(`-${invoice.discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 30 + subtotalWidth + valueWidth, totalY + 20, { width: valueWidth, align: 'right' })
-        
+
         doc.rect(30 + subtotalWidth, totalY + 32, valueWidth, 16).stroke()
         doc.text(`GST @ ${invoice.gstPercent}%`, 40 + subtotalWidth + 3, totalY + 36, { width: valueWidth - 6, align: 'left' })
         doc.text(invoice.gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 30 + subtotalWidth + valueWidth, totalY + 36, { width: valueWidth, align: 'right' })

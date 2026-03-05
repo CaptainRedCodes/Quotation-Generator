@@ -1,5 +1,18 @@
 import { z } from 'zod'
 
+// ── Organization schemas ──────────────────────────────────────────
+
+export const createOrganizationSchema = z.object({
+  name: z.string().min(1, 'Organization name is required').max(100),
+})
+
+export const addMemberSchema = z.object({
+  email: z.string().email('Valid email is required'),
+  role: z.enum(['ORG_ADMIN', 'EMPLOYEE']).default('EMPLOYEE'),
+})
+
+// ── Business data schemas ─────────────────────────────────────────
+
 export const createQuotationSchema = z.object({
   toCompanyName: z.string().min(1, 'Company name is required'),
   toAddress: z.string().min(1, 'Address is required'),
@@ -55,7 +68,7 @@ export const updateSettingsSchema = z.object({
   panNo: z.string().min(1, 'PAN number is required'),
   cinNo: z.string().optional().nullable(),
   msmeNo: z.string().optional().nullable(),
-  emailFrom: z.string().email('Invalid email address'),
+  emailFrom: z.string().email('Invalid email address').optional().nullable(),
   termsConditions: z.string().optional().nullable()
 })
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { Loader2, Save, User, Building, FileText, Mail, AlertCircle } from 'lucide-react'
+import { useOrg } from '@/components/OrgContext'
 
 interface CompanySettings {
   id: string
@@ -20,6 +21,7 @@ type Tab = 'company' | 'account' | 'templates' | 'email'
 
 export default function SettingsPage() {
   const { data: session } = useSession()
+  const { orgFetch } = useOrg()
   const [activeTab, setActiveTab] = useState<Tab>('company')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -49,9 +51,9 @@ export default function SettingsPage() {
 
   async function loadData() {
     try {
-      const res = await fetch('/api/settings')
+      const res = await orgFetch('/api/settings')
       const data = await res.json()
-      
+
       if (data.settings) {
         setSettings(data.settings)
       }
@@ -67,7 +69,7 @@ export default function SettingsPage() {
     setSuccess(null)
     setSaving(true)
     try {
-      const res = await fetch('/api/settings', {
+      const res = await orgFetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
@@ -93,7 +95,7 @@ export default function SettingsPage() {
     setError(null)
     setSuccess(null)
     try {
-      const res = await fetch('/api/email/send', {
+      const res = await orgFetch('/api/email/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -143,11 +145,10 @@ export default function SettingsPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === tab.id
-                      ? 'border-blue-900 text-blue-900'
-                      : 'border-transparent text-slate-600 hover:text-slate-800'
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
+                    ? 'border-blue-900 text-blue-900'
+                    : 'border-transparent text-slate-600 hover:text-slate-800'
+                    }`}
                 >
                   <tab.icon className="w-4 h-4" />
                   {tab.label}
@@ -156,21 +157,21 @@ export default function SettingsPage() {
             </nav>
           </div>
 
-           <div className="p-6">
-             {error && (
-               <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
-                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                 <p className="text-red-800 text-sm">{error}</p>
-               </div>
-             )}
-             
-             {success && (
-               <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                 <p className="text-green-800 text-sm">{success}</p>
-               </div>
-             )}
-             
-             {activeTab === 'company' && (
+          <div className="p-6">
+            {error && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-red-800 text-sm">{error}</p>
+              </div>
+            )}
+
+            {success && (
+              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-800 text-sm">{success}</p>
+              </div>
+            )}
+
+            {activeTab === 'company' && (
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -178,7 +179,7 @@ export default function SettingsPage() {
                   </label>
                   <input
                     type="text"
-                      value={settings.companyName || ''}
+                    value={settings.companyName || ''}
                     onChange={(e) => setSettings({ ...settings, companyName: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -248,8 +249,12 @@ export default function SettingsPage() {
                     type="email"
                     value={settings.emailFrom || ''}
                     onChange={(e) => setSettings({ ...settings, emailFrom: e.target.value })}
+                    placeholder="onboarding@resend.dev"
                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Leave empty to use the default: onboarding@resend.dev
+                  </p>
                 </div>
                 <div className="pt-4">
                   <button
@@ -312,9 +317,9 @@ export default function SettingsPage() {
                             setError('Passwords do not match')
                             return
                           }
-                          
+
                           setChangingPassword(true)
-                          
+
                           try {
                             const res = await fetch('/api/settings', {
                               method: 'POST',
@@ -384,7 +389,15 @@ export default function SettingsPage() {
 
             {activeTab === 'email' && (
               <div className="space-y-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
+                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <h3 className="font-medium text-green-900 mb-2">Default Sender Email</h3>
+                  <p className="text-sm text-green-800">
+                    All emails are sent from <strong>onboarding@resend.dev</strong> by default.
+                    You can change this in Company Details → Email From Address.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <h3 className="font-medium text-blue-900 mb-2">Resend Configuration</h3>
                   <p className="text-sm text-blue-800">
                     To configure email, add your Resend API key to the environment variable:

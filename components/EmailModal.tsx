@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Loader2, X, Plus } from 'lucide-react'
 import { formatIndianCurrency } from '@/lib/utils'
 import { APP_CONFIG } from '@/lib/constants'
+import { useOrg } from './OrgContext'
 
 interface EmailModalProps {
   quotationId: string
@@ -30,6 +31,7 @@ export function EmailModal({
   onClose,
   onSuccess
 }: EmailModalProps) {
+  const { orgFetch } = useOrg()
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,7 +42,7 @@ export function EmailModal({
 
   const [subject, setSubject] = useState(`Quotation ${quotationNo} from Adisen Tech Pvt Ltd`)
   const [message, setMessage] = useState(
-`Dear Sir/Madam,
+    `Dear Sir/Madam,
 
 Please find attached the quotation ${quotationNo} dated ${date} for your reference.
 
@@ -94,7 +96,7 @@ Adisen Tech Pvt Ltd`
 
     setSending(true)
     try {
-      const res = await fetch('/api/email/send', {
+      const res = await orgFetch('/api/email/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
