@@ -44,12 +44,12 @@ export async function POST(request: Request) {
             const confirmationUrl = resetLinkData.properties.confirmation_url
             const urlObj = new URL(confirmationUrl)
             const token = urlObj.searchParams.get('token')
-            
+
             if (token) {
                 const resetUrl = `${siteUrl}/reset-password?token=${token}`
-                
+
                 await resend.emails.send({
-                    from: 'Arinox Quote Generator <onboarding@resend.dev>',
+                    from: process.env.RESEND_FROM_EMAIL || 'Arinox Quote Generator <onboarding@resend.dev>',
                     to: email.toLowerCase(),
                     subject: 'Reset your password',
                     html: `

@@ -193,25 +193,72 @@ export async function POST(
             },
         })
 
-        // Send password-reset email via Supabase so the user can set their own password
-        // Supabase handles the email delivery via its configured email provider
+        // Send invite email via Resend with a proper password-reset link
         if (isNewUser) {
             try {
-                const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-                if (supabaseAnonKey) {
-                    const siteUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+                const siteUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
 
-                    await fetch(`${supabaseUrl}/auth/v1/recover`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            apikey: supabaseAnonKey,
-                        },
-                        body: JSON.stringify({
-                            email: email.toLowerCase(),
-                            redirect_to: `${siteUrl}/reset-password`,
-                        }),
-                    })
+                // Use Supabase Admin API to generate a recovery link (gives us a token)
+                const generateLinkRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${serviceRoleKey}`,
+                        'apikey': serviceRoleKey,
+                    },
+                    body: JSON.stringify({
+                        email: email.toLowerCase(),
+                        type: 'recovery',
+                    }),
+                })
+
+                if (generateLinkRes.ok) {
+                    const linkData = await generateLinkRes.json()
+                    const confirmationUrl = linkData.properties?.confirmation_url
+
+                    if (confirmationUrl) {
+                        const urlObj = new URL(confirmationUrl)
+                        const token = urlObj.searchParams.get('token')
+
+                        if (token) {
+                            const resetUrl = `${siteUrl}/reset-password?token=${token}`
+
+                            // Look up org name for the email
+                            let orgName = ''
+                            try {
+                                const org = await db.organization.findUnique({ where: { id: orgId }, select: { name: true } })
+                                if (org?.name) orgName = org.name
+                            } catch {
+                                // ignore
+                            }
+
+                            const { Resend } = await import('resend')
+                            const resendClient = new Resend(process.env.RESEND_API_KEY)
+
+                            await resendClient.emails.send({
+                                from: process.env.RESEND_FROM_EMAIL || 'Arinox Quote Generator <onboarding@resend.dev>',
+                                to: email.toLowerCase(),
+                                subject: `You're invited to join ${orgName || 'an organization'} on Arinox Quote Generator`,
+                                html: `
+                                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                                        <h2>You're invited to join ${orgName || 'an organization'} on Arinox Quote Generator</h2>
+                                        <p>An account has been created for you with the email: <strong>${email.toLowerCase()}</strong></p>
+                                        <p>Click the button below to set your password and get started:</p>
+                                        <p>
+                                            <a href="${resetUrl}" style="display: inline-block; padding: 12px 18px; background: #000; color: #fff; text-decoration: none; border-radius: 6px;">
+                                                Set Your Password
+                                            </a>
+                                        </p>
+                                        <p style="color: #999; font-size: 12px; margin-top: 24px;">
+                                            If you did not expect this invitation, you can ignore this email.
+                                        </p>
+                                    </div>
+                                `
+                            })
+                        }
+                    }
+                } else {
+                    console.error('Failed to generate recovery link:', await generateLinkRes.text())
                 }
             } catch (emailError) {
                 // Log but don't fail — the user was created, just the email failed

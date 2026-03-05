@@ -84,9 +84,9 @@ export default function OrganizationManagePage() {
             const res = await fetch('/api/auth/invite-user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    email: newEmail.trim(), 
-                    organizationId: orgId, 
+                body: JSON.stringify({
+                    email: newEmail.trim(),
+                    organizationId: orgId,
                     role: newRole,
                     invitedBy: 'admin'
                 }),
@@ -119,7 +119,7 @@ export default function OrganizationManagePage() {
 
     const handleResendInvite = async (inviteId: string) => {
         try {
-            const res = await fetch('/api/invites', {
+            const res = await fetch(`/api/invites/${inviteId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ inviteId, action: 'resend' }),
@@ -138,7 +138,7 @@ export default function OrganizationManagePage() {
     const handleCancelInvite = async (inviteId: string) => {
         if (!confirm('Cancel this invitation?')) return
         try {
-            const res = await fetch('/api/invites', {
+            const res = await fetch(`/api/invites/${inviteId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ inviteId, action: 'cancel' }),
@@ -269,22 +269,20 @@ export default function OrganizationManagePage() {
                     <div className="flex border-b">
                         <button
                             onClick={() => setActiveTab('members')}
-                            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                                activeTab === 'members'
+                            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === 'members'
                                     ? 'border-black text-black'
                                     : 'border-transparent text-gray-500 hover:text-gray-700'
-                            }`}
+                                }`}
                         >
                             <Users className="w-4 h-4" />
                             Members ({members.length})
                         </button>
                         <button
                             onClick={() => setActiveTab('invites')}
-                            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                                activeTab === 'invites'
+                            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === 'invites'
                                     ? 'border-black text-black'
                                     : 'border-transparent text-gray-500 hover:text-gray-700'
-                            }`}
+                                }`}
                         >
                             <Mail className="w-4 h-4" />
                             Pending Invites ({invites.length})

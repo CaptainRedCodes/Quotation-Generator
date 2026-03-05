@@ -59,9 +59,9 @@ export async function PUT(request: Request) {
       }
 
       const loginUrl = (process.env.NEXTAUTH_URL || 'http://localhost:3000') + '/login'
-      
+
       await resend.emails.send({
-        from: 'Arinox Quote Generator <onboarding@resend.dev>',
+        from: process.env.RESEND_FROM_EMAIL || 'Arinox Quote Generator <onboarding@resend.dev>',
         to: invite.email,
         subject: `You're invited to join ${invite.organization.name} on Arinox Quote Generator`,
         html: `
