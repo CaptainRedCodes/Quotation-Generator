@@ -128,6 +128,7 @@ export async function POST(request: Request) {
       const totalY = currentY + 5
       const subtotalWidth = contentWidth * 0.6
       const valueWidth = contentWidth * 0.2
+      let amountWordsY: number
 
       doc.rect(30 + subtotalWidth, totalY, valueWidth, 16).stroke()
       doc.fontSize(8).text('Subtotal', 40 + subtotalWidth + 3, totalY + 4, { width: valueWidth - 6, align: 'left' })
@@ -151,7 +152,7 @@ export async function POST(request: Request) {
         doc.text('TOTAL', 40 + subtotalWidth + 3, grandTotalY + 4, { width: valueWidth - 6, align: 'left' })
         doc.text(invoice.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 30 + subtotalWidth + valueWidth, grandTotalY + 4, { width: valueWidth, align: 'right' })
 
-        const amountWordsY = grandTotalY + 25
+        amountWordsY = grandTotalY + 25
       } else {
         doc.rect(30 + subtotalWidth, totalY + 16, valueWidth, 16).stroke()
         doc.text(`GST @ ${invoice.gstPercent}%`, 40 + subtotalWidth + 3, totalY + 20, { width: valueWidth - 6, align: 'left' })
@@ -163,7 +164,7 @@ export async function POST(request: Request) {
         doc.text('TOTAL', 40 + subtotalWidth + 3, grandTotalY + 4, { width: valueWidth - 6, align: 'left' })
         doc.text(invoice.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }), 30 + subtotalWidth + valueWidth, grandTotalY + 4, { width: valueWidth, align: 'right' })
 
-        const amountWordsY = grandTotalY + 25
+        amountWordsY = grandTotalY + 25
       }
       doc.rect(30, amountWordsY, contentWidth, 18).stroke()
       doc.fontSize(8).font('Helvetica').fillColor('#000')
