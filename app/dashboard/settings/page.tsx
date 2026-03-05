@@ -6,12 +6,14 @@ import { Loader2, Save, User, Building, FileText, Mail, AlertCircle } from 'luci
 
 interface CompanySettings {
   id: string
-  companyName: string
-  address: string
-  gstNo: string
-  panNo: string
-  emailFrom: string
-  termsConditions: string
+  companyName: string | null
+  address: string | null
+  gstNo: string | null
+  panNo: string | null
+  cinNo: string | null
+  msmeNo: string | null
+  emailFrom: string | null
+  termsConditions: string | null
 }
 
 type Tab = 'company' | 'account' | 'templates' | 'email'
@@ -27,12 +29,14 @@ export default function SettingsPage() {
 
   const [settings, setSettings] = useState<CompanySettings>({
     id: '',
-    companyName: '',
-    address: '',
-    gstNo: '',
-    panNo: '',
-    emailFrom: '',
-    termsConditions: ''
+    companyName: null,
+    address: null,
+    gstNo: null,
+    panNo: null,
+    cinNo: null,
+    msmeNo: null,
+    emailFrom: null,
+    termsConditions: null
   })
 
   const [newPassword, setNewPassword] = useState('')
@@ -115,8 +119,8 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-900" />
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin" />
       </div>
     )
   }
@@ -129,14 +133,9 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-blue-900 text-white py-4 px-6">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-xl font-bold">Settings</h1>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-6 py-8">
+    <div className="min-h-screen bg-gray-50">
+      <main className="max-w-2xl mx-auto px-4 py-6">
+        <h1 className="text-xl font-semibold mb-6">Settings</h1>
         <div className="bg-white rounded-lg shadow border border-slate-200">
           <div className="border-b border-slate-200">
             <nav className="flex">
@@ -179,7 +178,7 @@ export default function SettingsPage() {
                   </label>
                   <input
                     type="text"
-                    value={settings.companyName}
+                      value={settings.companyName || ''}
                     onChange={(e) => setSettings({ ...settings, companyName: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -189,7 +188,7 @@ export default function SettingsPage() {
                     Address
                   </label>
                   <textarea
-                    value={settings.address}
+                    value={settings.address || ''}
                     onChange={(e) => setSettings({ ...settings, address: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     rows={3}
@@ -202,7 +201,7 @@ export default function SettingsPage() {
                     </label>
                     <input
                       type="text"
-                      value={settings.gstNo}
+                      value={settings.gstNo || ''}
                       onChange={(e) => setSettings({ ...settings, gstNo: e.target.value })}
                       className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -213,8 +212,30 @@ export default function SettingsPage() {
                     </label>
                     <input
                       type="text"
-                      value={settings.panNo}
+                      value={settings.panNo || ''}
                       onChange={(e) => setSettings({ ...settings, panNo: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      CIN Number
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.cinNo || ''}
+                      onChange={(e) => setSettings({ ...settings, cinNo: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      MSME Number
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.msmeNo || ''}
+                      onChange={(e) => setSettings({ ...settings, msmeNo: e.target.value })}
                       className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -225,7 +246,7 @@ export default function SettingsPage() {
                   </label>
                   <input
                     type="email"
-                    value={settings.emailFrom}
+                    value={settings.emailFrom || ''}
                     onChange={(e) => setSettings({ ...settings, emailFrom: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -234,7 +255,7 @@ export default function SettingsPage() {
                   <button
                     onClick={handleSaveSettings}
                     disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800 disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
                   >
                     {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                     <Save className="w-4 h-4" />
@@ -338,7 +359,7 @@ export default function SettingsPage() {
                     Default Terms & Conditions
                   </label>
                   <textarea
-                    value={settings.termsConditions}
+                    value={settings.termsConditions || ''}
                     onChange={(e) => setSettings({ ...settings, termsConditions: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     rows={8}
@@ -351,7 +372,7 @@ export default function SettingsPage() {
                   <button
                     onClick={handleSaveSettings}
                     disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-md hover:bg-blue-800 disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
                   >
                     {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                     <Save className="w-4 h-4" />

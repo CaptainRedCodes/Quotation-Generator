@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { generateQuotationNo } from '@/lib/utils'
 import { createQuotationSchema } from '@/lib/validators'
+import { APP_CONFIG } from '@/lib/constants'
 
 export async function GET() {
   const session = await auth()
@@ -50,10 +51,13 @@ export async function POST(request: Request) {
 
     let subtotal = 0
     items.forEach((item) => {
-      subtotal += item.quantity * item.unitPrice
+      if (!item.isProductHeader) {
+        subtotal += item.quantity * item.unitPrice
+      }
     })
 
-    const gstAmount = subtotal * 0.18
+    const gstPercent = APP_CONFIG.defaultGstPercent / 100
+    const gstAmount = subtotal * gstPercent
     const totalAmount = subtotal + gstAmount
 
     const quotation = await db.quotation.create({
@@ -66,6 +70,7 @@ export async function POST(request: Request) {
         toPhone: toPhone || null,
         toEmail: toEmail || null,
         subtotal,
+        gstPercent: APP_CONFIG.defaultGstPercent,
         gstAmount,
         totalAmount,
         termsConditions: termsConditions || '',

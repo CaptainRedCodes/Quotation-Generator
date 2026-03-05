@@ -32,7 +32,7 @@ export async function PUT(request: Request) {
       )
     }
 
-    const { companyName, address, gstNo, panNo, emailFrom, termsConditions } = validation.data
+    const { companyName, address, gstNo, panNo, cinNo, msmeNo, emailFrom, termsConditions } = validation.data
 
     const settings = await db.companySettings.upsert({
       where: { id: 'default' },
@@ -41,6 +41,8 @@ export async function PUT(request: Request) {
         address,
         gstNo,
         panNo,
+        cinNo,
+        msmeNo,
         emailFrom,
         termsConditions: termsConditions || ''
       },
@@ -50,6 +52,8 @@ export async function PUT(request: Request) {
         address,
         gstNo,
         panNo,
+        cinNo,
+        msmeNo,
         emailFrom,
         termsConditions: termsConditions || ''
       }

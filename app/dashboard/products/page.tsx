@@ -198,28 +198,21 @@ export default function ProductsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-900" />
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-blue-900 text-white py-4 px-6">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-bold">Products</h1>
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-800 hover:bg-blue-700 rounded-md"
-          >
-            <Plus className="w-4 h-4" />
-            Add Product
+    <div className="min-h-screen bg-gray-50">
+      <main className="max-w-6xl mx-auto px-4 py-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-xl font-semibold">Products</h1>
+          <button onClick={() => handleOpenModal()} className="flex items-center gap-2 px-3 py-2 bg-black text-white text-sm rounded-md">
+            <Plus className="w-4 h-4" /> Add
           </button>
         </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 py-8">
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -286,15 +279,15 @@ export default function ProductsPage() {
                   {product.components.length > 0 && (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead className="bg-slate-50">
+                        <thead className="bg-gray-50 border-b">
                           <tr>
-                            <th className="px-3 py-2 text-left text-slate-600">Component</th>
-                            <th className="px-3 py-2 text-left text-slate-600">SAC Code</th>
-                            <th className="px-3 py-2 text-left text-slate-600">Qty</th>
-                            <th className="px-3 py-2 text-left text-slate-600">Unit Price</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-600">Component</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-600">HSN/SAC</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-600">Qty</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-600">Unit Price</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-200">
+                        <tbody className="divide-y">
                           {product.components.map((comp) => (
                             <tr key={comp.id}>
                               <td className="px-3 py-2">{comp.componentName}</td>
@@ -362,10 +355,10 @@ export default function ProductsPage() {
 
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-slate-700">Components</label>
+                  <label className="block text-sm font-medium text-gray-700">Components</label>
                   <button
                     onClick={handleAddComponent}
-                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+                    className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
                   >
                     <Plus className="w-4 h-4" />
                     Add Component
@@ -379,32 +372,32 @@ export default function ProductsPage() {
                         placeholder="Component Name"
                         value={comp.componentName}
                         onChange={(e) => handleUpdateComponent(index, 'componentName', e.target.value)}
-                        className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        className="flex-1 px-3 py-2 border rounded-md text-sm"
                       />
                       <input
                         type="text"
-                        placeholder="SAC"
+                        placeholder="HSN/SAC"
                         value={comp.sacCode || ''}
                         onChange={(e) => handleUpdateComponent(index, 'sacCode', e.target.value)}
-                        className="w-20 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        className="w-24 px-3 py-2 border rounded-md text-sm"
                       />
                       <input
                         type="number"
                         placeholder="Qty"
                         value={comp.quantity}
                         onChange={(e) => handleUpdateComponent(index, 'quantity', parseInt(e.target.value) || 0)}
-                        className="w-20 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        className="w-20 px-3 py-2 border rounded-md text-sm"
                       />
                       <input
                         type="number"
                         placeholder="Price"
                         value={comp.unitPrice}
                         onChange={(e) => handleUpdateComponent(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                        className="w-28 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        className="w-28 px-3 py-2 border rounded-md text-sm"
                       />
                       <button
                         onClick={() => handleDeleteComponent(index)}
-                        className="p-2 text-red-600 hover:text-red-800"
+                        className="p-2 text-red-600 hover:bg-red-50 rounded"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

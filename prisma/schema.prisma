@@ -13,8 +13,10 @@ model CompanySettings {
   address           String
   gstNo             String
   panNo             String
+  cinNo             String?
+  msmeNo            String?
   emailFrom         String
-  termsConditions  String
+  termsConditions   String
   signatureImageUrl String?
 }
 
@@ -44,31 +46,92 @@ model Quotation {
   quotationNo     String          @unique
   date            DateTime        @default(now())
   createdById     String
-  toCompanyName  String
+
+  toCompanyName   String
   toAddress       String
   toGstNo         String?
   toPhone         String?
   toEmail         String?
+
   subtotal        Float
+  discountType    String?         @default("percentage")
+  discountValue   Float?
+  discountAmount  Float?
+
   gstPercent      Float           @default(18)
   gstAmount       Float
   totalAmount     Float
+
   status          String          @default("draft")
   notes           String?
   termsConditions String?
+
+  invoiceId       String?         @unique
+  invoice         Invoice?        @relation(fields: [invoiceId], references: [id])
+
   items           QuotationItem[]
+
   createdAt       DateTime        @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model QuotationItem {
-  id              String    @id @default(cuid())
-  quotationId     String
-  quotation       Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  componentName  String
-  sacCode        String?
-  quantity       Int
-  unitPrice      Float
-  totalPrice     Float
-  isProductHeader Boolean  @default(false)
-  sortOrder      Int       @default(0)
+  id               String    @id @default(cuid())
+  quotationId      String
+  quotation        Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  componentName    String
+  sacCode          String?
+  quantity         Int
+  unitPrice        Float
+  totalPrice       Float
+
+  isProductHeader  Boolean  @default(false)
+  sortOrder        Int      @default(0)
+}
+
+model Invoice {
+  id              String          @id @default(cuid())
+  invoiceNo       String          @unique
+  invoiceDate     DateTime        @default(now())
+
+  quotation       Quotation?
+
+  toCompanyName   String
+  toAddress       String
+  toGstNo         String?
+  toPhone         String?
+  toEmail         String?
+
+  subtotal        Float
+  discountType    String?         @default("percentage")
+  discountValue   Float?
+  discountAmount  Float?
+
+  gstPercent      Float           @default(18)
+  gstAmount       Float
+  totalAmount     Float
+
+  status          String          @default("pending")
+  notes           String?
+  termsConditions String?
+
+  items           InvoiceItem[]
+
+  createdAt       DateTime        @default(now())
+}
+
+model InvoiceItem {
+  id               String   @id @default(cuid())
+  invoiceId        String
+  invoice          Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  componentName    String
+  sacCode          String?
+  quantity         Int
+  unitPrice        Float
+  totalPrice       Float
+
+  isProductHeader  Boolean  @default(false)
+  sortOrder        Int      @default(0)
 }

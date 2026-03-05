@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2, X } from 'lucide-react'
+import { Loader2, X, Plus } from 'lucide-react'
 import { formatIndianCurrency } from '@/lib/utils'
+import { APP_CONFIG } from '@/lib/constants'
 
 interface EmailModalProps {
   quotationId: string
@@ -31,16 +32,20 @@ export function EmailModal({
 }: EmailModalProps) {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [formData, setFormData] = useState({
-    to: to,
-    cc: '',
-    subject: `Quotation ${quotationNo} from Adisen Tech Pvt Ltd`,
-    message: `Dear ${to},
+
+  // Multiple TO recipients
+  const [toList, setToList] = useState<string[]>(to ? [to] : [''])
+  // Multiple CC recipients
+  const [ccList, setCcList] = useState<string[]>([''])
+
+  const [subject, setSubject] = useState(`Quotation ${quotationNo} from Adisen Tech Pvt Ltd`)
+  const [message, setMessage] = useState(
+`Dear Sir/Madam,
 
 Please find attached the quotation ${quotationNo} dated ${date} for your reference.
 
 Subtotal: ₹${formatIndianCurrency(subtotal)}
-GST (18%): ₹${formatIndianCurrency(gst)}
+GST (${APP_CONFIG.defaultGstPercent}%): ₹${formatIndianCurrency(gst)}
 Total: ₹${formatIndianCurrency(total)}
 
 Please feel free to reach out for any queries.
@@ -48,23 +53,56 @@ Please feel free to reach out for any queries.
 Warm regards,
 ${userName}
 Adisen Tech Pvt Ltd`
-  })
+  )
+
+  const updateList = (
+    list: string[],
+    setList: (v: string[]) => void,
+    index: number,
+    value: string
+  ) => {
+    const updated = [...list]
+    updated[index] = value
+    setList(updated)
+  }
+
+  const addToField = () => setToList([...toList, ''])
+  const removeToField = (i: number) => setToList(toList.filter((_, idx) => idx !== i))
+
+  const addCcField = () => setCcList([...ccList, ''])
+  const removeCcField = (i: number) => setCcList(ccList.filter((_, idx) => idx !== i))
 
   const handleSend = async () => {
     setError(null)
+
+    const validTo = toList.map(e => e.trim()).filter(Boolean)
+    const validCc = ccList.map(e => e.trim()).filter(Boolean)
+
+    if (validTo.length === 0) {
+      setError('At least one recipient email is required')
+      return
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const allEmails = [...validTo, ...validCc]
+    const invalid = allEmails.find(e => !emailRegex.test(e))
+    if (invalid) {
+      setError(`Invalid email address: ${invalid}`)
+      return
+    }
+
     setSending(true)
     try {
-      if (!formData.to) {
-        setError('Email address is required')
-        return
-      }
-
       const res = await fetch('/api/email/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           quotationId,
-          ...formData
+          to: validTo,
+          cc: validCc.length > 0 ? validCc : undefined,
+          subject,
+          message
         })
       })
 
@@ -92,62 +130,97 @@ Adisen Tech Pvt Ltd`
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4 max-h-[80vh] overflow-y-auto">
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-md">
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
-          
+
+          {/* TO */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">To *</label>
-            <input
-              type="email"
-              value={formData.to}
-              onChange={(e) => setFormData({ ...formData, to: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-sm font-medium text-slate-700">To *</label>
+              <button onClick={addToField} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800">
+                <Plus className="w-3 h-3" /> Add recipient
+              </button>
+            </div>
+            <div className="space-y-2">
+              {toList.map((email, i) => (
+                <div key={i} className="flex gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => updateList(toList, setToList, i, e.target.value)}
+                    placeholder="recipient@email.com"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                  {toList.length > 1 && (
+                    <button onClick={() => removeToField(i)} className="p-2 text-red-500 hover:text-red-700">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* CC */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">CC</label>
-            <input
-              type="email"
-              value={formData.cc}
-              onChange={(e) => setFormData({ ...formData, cc: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-sm font-medium text-slate-700">CC <span className="text-slate-400 font-normal">(optional)</span></label>
+              <button onClick={addCcField} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800">
+                <Plus className="w-3 h-3" /> Add CC
+              </button>
+            </div>
+            <div className="space-y-2">
+              {ccList.map((email, i) => (
+                <div key={i} className="flex gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => updateList(ccList, setCcList, i, e.target.value)}
+                    placeholder="cc@email.com (optional)"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                  <button onClick={() => removeCcField(i)} className="p-2 text-red-500 hover:text-red-700">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* Subject */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Subject *</label>
             <input
               type="text"
-              value={formData.subject}
-              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
+
+          {/* Message */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Message</label>
             <textarea
-              value={formData.message}
-              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               rows={10}
             />
           </div>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 border border-slate-300 rounded-md hover:bg-slate-50"
-            >
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={onClose} className="px-4 py-2 border border-slate-300 rounded-md hover:bg-slate-50 text-sm">
               Cancel
             </button>
             <button
               onClick={handleSend}
               disabled={sending}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-500 disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-500 disabled:opacity-50 flex items-center gap-2 text-sm"
             >
               {sending && <Loader2 className="w-4 h-4 animate-spin" />}
               Send Email

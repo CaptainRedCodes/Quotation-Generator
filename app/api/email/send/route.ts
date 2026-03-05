@@ -5,6 +5,7 @@ import { Resend } from 'resend'
 import { generatePDF } from '@/lib/pdf'
 import { formatIndianCurrency, formatDate } from '@/lib/utils'
 import { sendEmailSchema } from '@/lib/validators'
+import { APP_CONFIG } from '@/lib/constants'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
 Please find attached the quotation ${quotation.quotationNo} dated ${formatDate(quotation.date)} for your reference.
 
 Subtotal: ₹${formatIndianCurrency(quotation.subtotal)}
-GST (18%): ₹${formatIndianCurrency(quotation.gstAmount)}
+GST (${APP_CONFIG.defaultGstPercent}%): ₹${formatIndianCurrency(quotation.gstAmount)}
 Total: ₹${formatIndianCurrency(quotation.totalAmount)}
 
 Please feel free to reach out for any queries.
@@ -68,7 +69,7 @@ ${settings.companyName}`
     const emailHtml = (message || defaultMessage).replace(/\n/g, '<br>')
 
     const data = await resend.emails.send({
-      from: settings.emailFrom,
+      from: settings.emailFrom || "onboarding@resend.dev",
       to,
       cc: cc || undefined,
       subject: subject || defaultSubject,
@@ -84,6 +85,11 @@ ${settings.companyName}`
         }
       ]
     })
+
+    if (data.error) {
+      console.error('Resend API error:', data.error)
+      return NextResponse.json({ error: data.error.message || 'Failed to send email' }, { status: 400 })
+    }
 
     await db.quotation.update({
       where: { id: quotationId },

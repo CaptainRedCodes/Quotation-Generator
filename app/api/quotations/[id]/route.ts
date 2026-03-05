@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { updateQuotationSchema } from '@/lib/validators'
+import { APP_CONFIG } from '@/lib/constants'
 
 const VALID_STATUSES = ['draft', 'sent', 'accepted'] as const
 
@@ -54,7 +55,7 @@ export async function PUT(
       )
     }
 
-    const { toCompanyName, toAddress, toGstNo, toPhone, toEmail, items, termsConditions, status, quotationNo, date } = validation.data
+    const { toCompanyName, toAddress, toGstNo, toPhone, toEmail, items, termsConditions, status, quotationNo, date, discountType, discountValue } = validation.data
 
     // Validate status
     if (status && !VALID_STATUSES.includes(status)) {
@@ -66,11 +67,18 @@ export async function PUT(
 
     let subtotal = 0
     items.forEach((item) => {
-      subtotal += item.quantity * item.unitPrice
+      if (!item.isProductHeader) {
+        subtotal += item.quantity * item.unitPrice
+      }
     })
 
-    const gstAmount = subtotal * 0.18
-    const totalAmount = subtotal + gstAmount
+    const discountAmount = discountType === 'percentage' 
+      ? subtotal * ((discountValue || 0) / 100) 
+      : (discountValue || 0)
+    const afterDiscount = subtotal - discountAmount
+    const gstPercent = APP_CONFIG.defaultGstPercent / 100
+    const gstAmount = afterDiscount * gstPercent
+    const totalAmount = afterDiscount + gstAmount
 
     await db.quotationItem.deleteMany({
       where: { quotationId: id }
@@ -85,6 +93,9 @@ export async function PUT(
         toPhone: toPhone || null,
         toEmail: toEmail || null,
         subtotal,
+        discountType: discountType || 'percentage',
+        discountValue: discountValue || null,
+        discountAmount,
         gstAmount,
         totalAmount,
         termsConditions: termsConditions || '',

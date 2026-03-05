@@ -1,3 +1,5 @@
+import { APP_CONFIG, DEFAULTS } from './constants'
+
 const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
 const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
 
@@ -57,12 +59,12 @@ export function generateQuotationNo(lastNo: string | null, date: Date): string {
   const fyString = `${fyStart}-${fyEnd}`
 
   if (!lastNo || !lastNo.includes(fyString)) {
-    return `ATPL/${fyString}/001`
+    return `${APP_CONFIG.companyPrefix}/${fyString}/001`
   }
 
   const lastNum = parseInt(lastNo.split('/').pop() || '0')
-  const nextNum = String(lastNum + 1).padStart(3, '0')
-  return `ATPL/${fyString}/${nextNum}`
+  const nextNum = String(lastNum + 1).padStart(DEFAULTS.quotationNumberPadding, '0')
+  return `${APP_CONFIG.companyPrefix}/${fyString}/${nextNum}`
 }
 
 export function formatIndianCurrency(amount: number): string {
