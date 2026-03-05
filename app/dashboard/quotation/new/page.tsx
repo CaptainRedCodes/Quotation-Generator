@@ -599,7 +599,6 @@ export default function NewQuotationPage() {
                   <div className="p-1 border-r border-black" style={{ width: '42%' }}>PARTICULARS</div>
                   <div className="p-1 border-r border-black text-center" style={{ width: '12%' }}>HSN/SAC</div>
                   <div className="p-1 border-r border-black text-center" style={{ width: '8%' }}>Qty</div>
-                  <div className="p-1 border-r border-black text-right" style={{ width: '19%' }}>Unit Price</div>
                   <div className="p-1 text-right" style={{ width: '19%' }}>Amount</div>
                 </div>
 
@@ -616,11 +615,8 @@ export default function NewQuotationPage() {
                       <div className="p-1 border-r border-black text-center" style={{ width: '8%' }}>
                         {!item.isProductHeader && item.quantity > 0 ? item.quantity : ''}
                       </div>
-                      <div className="p-1 border-r border-black text-right" style={{ width: '19%' }}>
-                        {item.isProductHeader ? '' : (!item.isProductHeader && item.unitPrice > 0 ? formatIndianCurrency(item.unitPrice) : '')}
-                      </div>
-                      <div className="p-1 text-right" style={{ width: '19%' }}>
-                        {item.isProductHeader ? '' : (!item.isProductHeader && item.totalPrice > 0 ? formatIndianCurrency(item.totalPrice) : '')}
+                      <div className="p-1.5 text-right" style={{ width: '24%' }}>
+                        {!item.isProductHeader && item.totalPrice > 0 ? formatIndianCurrency(item.totalPrice) : ''}
                       </div>
                     </div>
                   ))}

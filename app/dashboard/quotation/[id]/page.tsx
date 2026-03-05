@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { Loader2, ArrowLeft, FileDown, Trash2, Send, Plus, Check } from 'lucide-react'
+import { Loader2, ArrowLeft, FileDown, Trash2, Send, Plus, Check, Mail } from 'lucide-react'
 import Link from 'next/link'
 import { formatIndianCurrency, formatDate } from '@/lib/utils'
 import { APP_CONFIG } from '@/lib/constants'
+import { EmailModal } from '@/components/EmailModal'
 
 interface QuotationItem {
   id: string
@@ -50,6 +51,8 @@ export default function QuotationPage() {
   const [showComponents, setShowComponents] = useState(true)
   const [creatingInvoice, setCreatingInvoice] = useState(false)
   const [invoiceNo, setInvoiceNo] = useState('')
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [savedQuotationId, setSavedQuotationId] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
@@ -70,6 +73,11 @@ export default function QuotationPage() {
     }
   }
 
+  const handleSendEmail = () => {
+  if (!savedQuotationId) return
+  setShowEmailModal(true)
+}
+  
   const createInvoice = async () => {
     if (!quotation) return
     setCreatingInvoice(true)
@@ -230,17 +238,40 @@ export default function QuotationPage() {
                 <button onClick={downloadPDF} className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
                   <FileDown className="w-4 h-4" /> Download PDF
                 </button>
-                <button className="flex items-center justify-center gap-2 w-full px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
-                  <Send className="w-4 h-4" /> Send Email
-                </button>
+                <button
+                    onClick={handleSendEmail}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-green-600 text-green-700 rounded-md hover:bg-green-50 font-medium"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Send Email
+                  </button>
                 <button onClick={deleteQuotation} className="flex items-center justify-center gap-2 w-full px-4 py-2 text-red-600 border border-red-300 rounded-md hover:bg-red-50">
                   <Trash2 className="w-4 h-4" /> Delete
                 </button>
               </div>
             </div>
           </div>
+          {showEmailModal && quotation && (
+                  <EmailModal
+                    quotationId={quotation.id}
+                    to={quotation.toEmail || " "}
+                    quotationNo={quotation.quotationNo}
+                    date={quotation.date.toDateString()}
+                    subtotal={quotation.subtotal}
+                    gst={quotation.gstAmount}
+                    total={quotation.totalAmount}
+                    userName={session?.user?.name || ''}
+                    onClose={() => setShowEmailModal(false)}
+                    onSuccess={() => {
+                      setShowEmailModal(false)
+                      router.push('/dashboard')
+                    }}
+                  />
+                )}
         </div>
       </div>
     </div>
   )
 }
+
+
