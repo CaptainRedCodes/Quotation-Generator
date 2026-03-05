@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 
 const prismaClientSingleton = () => {
-  const databaseUrl = process.env.DATABASE_URL
+  const databaseUrl = process.env.POSTGRES_PRISMA_URL
   
   if (!databaseUrl) {
     throw new Error(
