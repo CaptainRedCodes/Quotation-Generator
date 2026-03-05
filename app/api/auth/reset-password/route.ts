@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server'
 
-/**
- * POST /api/auth/reset-password
- * Updates the user's password using the Supabase access token from the recovery flow.
- */
 export async function POST(request: Request) {
     try {
         const { accessToken, newPassword } = await request.json()
@@ -23,18 +19,18 @@ export async function POST(request: Request) {
         }
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
-        if (!supabaseUrl) {
+        if (!supabaseUrl || !supabaseAnonKey) {
             return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
         }
 
-        // Use the access token from recovery to update the user's password
         const updateRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${accessToken}`,
-                apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '',
+                'Authorization': `Bearer ${accessToken}`,
+                'apikey': supabaseAnonKey,
             },
             body: JSON.stringify({ password: newPassword }),
         })

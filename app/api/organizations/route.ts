@@ -9,32 +9,40 @@ import { createOrganizationSchema } from '@/lib/validators'
  * List all organizations the current user belongs to.
  */
 export async function GET() {
-    const authResult = await requireAuth()
-    if (isAuthError(authResult)) return authResult
+    try {
+        const authResult = await requireAuth()
+        if (isAuthError(authResult)) return authResult
 
-    const memberships = await db.organizationMembership.findMany({
-        where: { userId: authResult.userId },
-        include: {
-            organization: {
-                include: {
-                    memberships: {
-                        select: { id: true },
+        const memberships = await db.organizationMembership.findMany({
+            where: { userId: authResult.userId },
+            include: {
+                organization: {
+                    include: {
+                        memberships: {
+                            select: { id: true },
+                        },
                     },
                 },
             },
-        },
-        orderBy: { createdAt: 'desc' },
-    })
+            orderBy: { createdAt: 'desc' },
+        })
 
-    const organizations = memberships.map((m) => ({
-        id: m.organization.id,
-        name: m.organization.name,
-        role: m.role,
-        memberCount: m.organization.memberships.length,
-        createdAt: m.organization.createdAt,
-    }))
+        const organizations = memberships.map((m) => ({
+            id: m.organization.id,
+            name: m.organization.name,
+            role: m.role,
+            memberCount: m.organization.memberships.length,
+            createdAt: m.organization.createdAt,
+        }))
 
-    return NextResponse.json(organizations)
+        return NextResponse.json(organizations)
+    } catch (error) {
+        console.error('Error fetching organizations:', error)
+        return NextResponse.json(
+            { error: 'Failed to fetch organizations' },
+            { status: 500 }
+        )
+    }
 }
 
 /**

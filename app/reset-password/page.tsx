@@ -17,18 +17,24 @@ export default function ResetPasswordPage() {
 
     // Extract access_token from URL hash fragment (Supabase puts it there after recovery verification)
     useEffect(() => {
-        const hash = window.location.hash.substring(1)
-        const params = new URLSearchParams(hash)
-        const token = params.get('access_token')
-        const type = params.get('type')
+        const params = new URLSearchParams(window.location.search)
+        const token = params.get('token')
 
-        if (token && type === 'recovery') {
+        if (token) {
             setAccessToken(token)
-        } else if (hash) {
-            // Hash exists but no valid recovery token
-            setTokenError(true)
         } else {
-            setTokenError(true)
+            const hash = window.location.hash.substring(1)
+            const hashParams = new URLSearchParams(hash)
+            const hashToken = hashParams.get('access_token')
+            const type = hashParams.get('type')
+
+            if (hashToken && type === 'recovery') {
+                setAccessToken(hashToken)
+            } else if (hash || token) {
+                setTokenError(true)
+            } else {
+                setTokenError(true)
+            }
         }
     }, [])
 

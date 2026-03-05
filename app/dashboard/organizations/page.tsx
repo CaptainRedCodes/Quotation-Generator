@@ -24,6 +24,7 @@ export default function OrganizationsPage() {
                 router.replace('/dashboard')
             }
         }
+        console.log("Organizations:", userOrgs)
     }, [orgLoading, userOrgs, router])
 
     const handleCreate = async () => {
