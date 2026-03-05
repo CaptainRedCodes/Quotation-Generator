@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useOrg } from '@/components/OrgContext'
-import { Loader2, UserPlus, Trash2, Crown, ArrowLeft, Users, Shield, Mail, RefreshCw, X } from 'lucide-react'
+import { Loader2, UserPlus, Trash2, Crown, ArrowLeft, Users, Shield, Mail, RefreshCw, X, Copy, Check } from 'lucide-react'
 
 interface Member {
     id: string
@@ -22,6 +22,11 @@ interface Invite {
     createdAt: string
 }
 
+interface InviteCredentials {
+    email: string
+    tempPassword: string
+}
+
 export default function OrganizationManagePage() {
     const params = useParams()
     const router = useRouter()
@@ -38,6 +43,8 @@ export default function OrganizationManagePage() {
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
     const [activeTab, setActiveTab] = useState<'members' | 'invites'>('members')
+    const [credentials, setCredentials] = useState<InviteCredentials | null>(null)
+    const [copiedField, setCopiedField] = useState<string | null>(null)
 
     const org = userOrgs.find((o) => o.id === orgId)
 
@@ -74,6 +81,24 @@ export default function OrganizationManagePage() {
         Promise.all([fetchMembers(), fetchInvites()]).finally(() => setLoading(false))
     }, [orgId, org, activeOrg, setActiveOrg, fetchMembers, fetchInvites])
 
+    const copyToClipboard = async (text: string, field: string) => {
+        try {
+            await navigator.clipboard.writeText(text)
+            setCopiedField(field)
+            setTimeout(() => setCopiedField(null), 2000)
+        } catch {
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea')
+            textarea.value = text
+            document.body.appendChild(textarea)
+            textarea.select()
+            document.execCommand('copy')
+            document.body.removeChild(textarea)
+            setCopiedField(field)
+            setTimeout(() => setCopiedField(null), 2000)
+        }
+    }
+
     const handleInvite = async () => {
         if (!newEmail.trim()) return
         setAdding(true)
@@ -104,8 +129,14 @@ export default function OrganizationManagePage() {
                 setNewEmail('')
                 setNewRole('EMPLOYEE')
                 setShowAddForm(false)
-                setSuccess(`Invitation sent to ${data.email}!`)
                 setActiveTab('invites')
+
+                // Show credentials modal
+                setCredentials({
+                    email: data.email,
+                    tempPassword: data.tempPassword,
+                })
+                setSuccess(`Invitation sent to ${data.email}! Credentials email sent.`)
             } else {
                 const err = await res.json()
                 setError(err.error || 'Failed to invite user')
@@ -125,13 +156,20 @@ export default function OrganizationManagePage() {
                 body: JSON.stringify({ inviteId, action: 'resend' }),
             })
             if (res.ok) {
-                alert('Invite resent successfully!')
+                const data = await res.json()
+                if (data.tempPassword) {
+                    setCredentials({
+                        email: data.email || '',
+                        tempPassword: data.tempPassword,
+                    })
+                }
+                setSuccess('Invite resent! New credentials generated.')
             } else {
                 const err = await res.json()
-                alert(err.error || 'Failed to resend invite')
+                setError(err.error || 'Failed to resend invite')
             }
         } catch {
-            alert('Failed to resend invite')
+            setError('Failed to resend invite')
         }
     }
 
@@ -147,10 +185,10 @@ export default function OrganizationManagePage() {
                 setInvites(invites.filter(i => i.id !== inviteId))
             } else {
                 const err = await res.json()
-                alert(err.error || 'Failed to cancel invite')
+                setError(err.error || 'Failed to cancel invite')
             }
         } catch {
-            alert('Failed to cancel invite')
+            setError('Failed to cancel invite')
         }
     }
 
@@ -166,10 +204,10 @@ export default function OrganizationManagePage() {
                 setMembers(members.filter((m) => m.userId !== userId))
             } else {
                 const err = await res.json()
-                alert(err.error || 'Failed to remove member')
+                setError(err.error || 'Failed to remove member')
             }
         } catch {
-            alert('Failed to remove member')
+            setError('Failed to remove member')
         }
     }
 
@@ -183,6 +221,74 @@ export default function OrganizationManagePage() {
 
     return (
         <div className="min-h-screen bg-gray-50">
+            {/* Credentials Modal */}
+            {credentials && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold">Invite Credentials</h3>
+                            <button onClick={() => setCredentials(null)} className="p-1 hover:bg-gray-100 rounded">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-4">
+                            These credentials have been emailed to the user. They will be required to change their password on first sign in.
+                        </p>
+                        <div className="space-y-3 bg-gray-50 border rounded-lg p-4">
+                            <div>
+                                <label className="block text-xs text-gray-500 mb-1">Email</label>
+                                <div className="flex items-center gap-2">
+                                    <code className="flex-1 bg-white px-3 py-2 rounded border text-sm font-mono">
+                                        {credentials.email}
+                                    </code>
+                                    <button
+                                        onClick={() => copyToClipboard(credentials.email, 'email')}
+                                        className="p-2 hover:bg-gray-200 rounded transition-colors"
+                                        title="Copy email"
+                                    >
+                                        {copiedField === 'email' ? (
+                                            <Check className="w-4 h-4 text-green-600" />
+                                        ) : (
+                                            <Copy className="w-4 h-4 text-gray-500" />
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-500 mb-1">Temporary Password</label>
+                                <div className="flex items-center gap-2">
+                                    <code className="flex-1 bg-white px-3 py-2 rounded border text-sm font-mono tracking-wider">
+                                        {credentials.tempPassword}
+                                    </code>
+                                    <button
+                                        onClick={() => copyToClipboard(credentials.tempPassword, 'password')}
+                                        className="p-2 hover:bg-gray-200 rounded transition-colors"
+                                        title="Copy password"
+                                    >
+                                        {copiedField === 'password' ? (
+                                            <Check className="w-4 h-4 text-green-600" />
+                                        ) : (
+                                            <Copy className="w-4 h-4 text-gray-500" />
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <p className="text-xs text-amber-700">
+                                <strong>Note:</strong> The user will be forced to change their password when they first sign in.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setCredentials(null)}
+                            className="mt-4 w-full py-2 bg-black text-white text-sm rounded-md hover:bg-gray-800 transition-colors"
+                        >
+                            Done
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <main className="max-w-4xl mx-auto px-4 py-6">
                 <div className="mb-6">
                     <button
@@ -215,14 +321,16 @@ export default function OrganizationManagePage() {
                     </div>
                 )}
 
+                {error && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex justify-between items-center">
+                        <span>{error}</span>
+                        <button onClick={() => setError('')} className="text-red-500 hover:text-red-700 ml-2">&times;</button>
+                    </div>
+                )}
+
                 {showAddForm && (
                     <div className="bg-white border rounded-lg p-4 mb-4">
                         <h3 className="text-sm font-medium mb-3">Invite New Member</h3>
-                        {error && (
-                            <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                                {error}
-                            </div>
-                        )}
                         <div className="flex gap-3 items-end">
                             <div className="flex-1">
                                 <label className="block text-xs text-gray-500 mb-1">Email Address</label>

@@ -5,9 +5,9 @@ import { db } from '@/lib/db'
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 const generateTempPassword = (): string => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+'
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz0123456789'
   let pwd = ''
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 12; i++) {
     pwd += chars.charAt(Math.floor(Math.random() * chars.length))
   }
   return pwd
@@ -38,50 +38,92 @@ export async function PUT(request: Request) {
         return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
       }
 
-      const tempPassword = generateTempPassword()
-
-      const updateRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${invite.email}`, {
-        method: 'PUT',
+      // First, find the user by email to get their ID
+      const listRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${supabaseServiceKey}`,
           'apikey': supabaseServiceKey,
         },
-        body: JSON.stringify({
-          password: tempPassword,
-        }),
       })
 
-      if (!updateRes.ok) {
-        const err = await updateRes.text()
-        console.error('Supabase update password error:', err)
-        return NextResponse.json({ error: 'Failed to reset password' }, { status: 500 })
+      let userId = ''
+      if (listRes.ok) {
+        const { users } = await listRes.json()
+        const user = users?.find(
+          (u: { email?: string }) => u.email?.toLowerCase() === invite.email.toLowerCase()
+        )
+        if (user) userId = user.id
+      }
+
+      const tempPassword = generateTempPassword()
+
+      if (userId) {
+        // Update existing user's password and re-set mustChangePassword
+        const updateRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'apikey': supabaseServiceKey,
+          },
+          body: JSON.stringify({
+            password: tempPassword,
+            user_metadata: {
+              mustChangePassword: true,
+            },
+          }),
+        })
+
+        if (!updateRes.ok) {
+          const err = await updateRes.text()
+          console.error('Supabase update password error:', err)
+          return NextResponse.json({ error: 'Failed to reset password' }, { status: 500 })
+        }
       }
 
       const loginUrl = (process.env.NEXTAUTH_URL || 'http://localhost:3000') + '/login'
 
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'Arinox Quote Generator <onboarding@resend.dev>',
-        to: invite.email,
-        subject: `You're invited to join ${invite.organization.name} on Arinox Quote Generator`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>You're invited to join ${invite.organization.name} on Arinox Quote Generator</h2>
-            <p>Email: <strong>${invite.email}</strong></p>
-            <p>Login with the temporary password below. You can change it after you sign in.</p>
-            <p style="margin: 12px 0; font-family: monospace; background: #f6f6f6; padding: 8px; border-radius: 6px; display: inline-block;">${tempPassword}</p>
-            <p><a href="${loginUrl}" style="display: inline-block; padding: 12px 18px; background: #000; color: #fff; text-decoration: none; border-radius: 6px;">Sign in</a></p>
-            <p>If you did not expect this invitation, you can ignore this email.</p>
-          </div>
-        `
-      })
+      // Send email with new credentials
+      try {
+        await resend.emails.send({
+          from: process.env.RESEND_FROM_EMAIL || 'Arinox Quote Generator <onboarding@resend.dev>',
+          to: invite.email,
+          subject: `Your login credentials for ${invite.organization.name}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h2 style="color: #333;">Your login credentials for ${invite.organization.name}</h2>
+              <p style="color: #555; line-height: 1.6;">
+                Here are your updated login credentials:
+              </p>
+              <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <p style="margin: 0 0 10px 0; color: #333;"><strong>Email:</strong> ${invite.email}</p>
+                <p style="margin: 0; color: #333;"><strong>Temporary Password:</strong></p>
+                <p style="margin: 5px 0 0 0; font-family: monospace; font-size: 18px; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #dee2e6; display: inline-block; letter-spacing: 1px;">${tempPassword}</p>
+              </div>
+              <p style="color: #555; line-height: 1.6;">
+                <strong>Important:</strong> You will be asked to change your password when you first sign in.
+              </p>
+              <p style="margin: 24px 0;">
+                <a href="${loginUrl}" style="display: inline-block; padding: 12px 24px; background: #000; color: #fff; text-decoration: none; border-radius: 6px; font-size: 14px;">Sign In</a>
+              </p>
+            </div>
+          `
+        })
+      } catch (emailError) {
+        console.error('Failed to send resend invite email:', emailError)
+      }
 
       await db.invite.update({
         where: { id: inviteId },
         data: { updatedAt: new Date() },
       })
 
-      return NextResponse.json({ success: true, message: 'Invite resent successfully' })
+      return NextResponse.json({
+        success: true,
+        message: 'Invite resent successfully',
+        email: invite.email,
+        tempPassword,
+      })
     }
 
     if (action === 'cancel') {

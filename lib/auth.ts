@@ -6,11 +6,13 @@ declare module 'next-auth' {
     user: {
       id: string
       role: string
+      mustChangePassword?: boolean
     } & DefaultSession['user']
   }
-  
+
   interface User {
     role: string
+    mustChangePassword?: boolean
   }
 }
 
@@ -53,21 +55,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               error: errorData.error,
               message: errorData.error_description || errorData.message
             })
-            console.error('Debug - Supabase URL:', supabaseUrl)
-            console.error('Debug - API Key present:', !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)
-            console.error('Debug - Email:', credentials.email)
             return null
           }
 
           const data = await response.json()
-          
+
           if (data.user) {
-            console.log('Auth: Successful login for', credentials.email)
             return {
               id: data.user.id,
               name: data.user.user_metadata?.name || data.user.email,
               email: data.user.email,
-              role: data.user.user_metadata?.role || 'user'
+              role: data.user.user_metadata?.role || 'user',
+              mustChangePassword: data.user.user_metadata?.mustChangePassword === true,
             }
           }
 
@@ -85,6 +84,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id
         token.role = user.role
+        token.mustChangePassword = user.mustChangePassword
       }
       return token
     },
@@ -92,6 +92,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string
         session.user.role = token.role as string
+        session.user.mustChangePassword = token.mustChangePassword as boolean
       }
       return session
     }

@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { update } = useSession()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -22,6 +23,15 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid email or password')
       } else {
+        // Refresh session to get latest data including mustChangePassword
+        const session = await update()
+
+        // Check if user must change password
+        if (session?.user?.mustChangePassword) {
+          router.push('/change-password')
+          return
+        }
+
         try {
           const orgRes = await fetch('/api/organizations')
           if (orgRes.ok) {
