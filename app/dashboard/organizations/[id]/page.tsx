@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useOrg } from '@/components/OrgContext'
-import { Loader2, UserPlus, Trash2, Crown, ArrowLeft, Users, Shield } from 'lucide-react'
+import { Loader2, UserPlus, Trash2, Crown, ArrowLeft, Users, Shield, Mail, RefreshCw, X } from 'lucide-react'
 
 interface Member {
     id: string
@@ -14,6 +14,14 @@ interface Member {
     createdAt: string
 }
 
+interface Invite {
+    id: string
+    email: string
+    role: 'ORG_ADMIN' | 'EMPLOYEE'
+    status: string
+    createdAt: string
+}
+
 export default function OrganizationManagePage() {
     const params = useParams()
     const router = useRouter()
@@ -21,6 +29,7 @@ export default function OrganizationManagePage() {
     const { activeOrg, userOrgs, setActiveOrg } = useOrg()
 
     const [members, setMembers] = useState<Member[]>([])
+    const [invites, setInvites] = useState<Invite[]>([])
     const [loading, setLoading] = useState(true)
     const [showAddForm, setShowAddForm] = useState(false)
     const [newEmail, setNewEmail] = useState('')
@@ -28,8 +37,8 @@ export default function OrganizationManagePage() {
     const [adding, setAdding] = useState(false)
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
+    const [activeTab, setActiveTab] = useState<'members' | 'invites'>('members')
 
-    // Find the org from the user's list
     const org = userOrgs.find((o) => o.id === orgId)
 
     const fetchMembers = useCallback(async () => {
@@ -43,51 +52,105 @@ export default function OrganizationManagePage() {
             }
         } catch (e) {
             console.error('Failed to fetch members:', e)
-        } finally {
-            setLoading(false)
         }
     }, [orgId, router])
 
+    const fetchInvites = useCallback(async () => {
+        try {
+            const res = await fetch(`/api/invites?organizationId=${orgId}`)
+            if (res.ok) {
+                const data = await res.json()
+                setInvites(data)
+            }
+        } catch (e) {
+            console.error('Failed to fetch invites:', e)
+        }
+    }, [orgId])
+
     useEffect(() => {
-        // Set this as the active org
         if (org && activeOrg?.id !== orgId) {
             setActiveOrg(org)
         }
-        fetchMembers()
-    }, [orgId, org, activeOrg, setActiveOrg, fetchMembers])
+        Promise.all([fetchMembers(), fetchInvites()]).finally(() => setLoading(false))
+    }, [orgId, org, activeOrg, setActiveOrg, fetchMembers, fetchInvites])
 
-    const handleAddMember = async () => {
+    const handleInvite = async () => {
         if (!newEmail.trim()) return
         setAdding(true)
         setError('')
         setSuccess('')
 
         try {
-            const res = await fetch(`/api/organizations/${orgId}/members`, {
+            const res = await fetch('/api/auth/invite-user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: newEmail.trim(), role: newRole }),
+                body: JSON.stringify({ 
+                    email: newEmail.trim(), 
+                    organizationId: orgId, 
+                    role: newRole,
+                    invitedBy: 'admin'
+                }),
             })
 
             if (res.ok) {
-                const member = await res.json()
-                setMembers([...members, member])
+                const data = await res.json()
+                setInvites([...invites, {
+                    id: data.userId,
+                    email: data.email,
+                    role: data.role,
+                    status: 'pending',
+                    createdAt: new Date().toISOString()
+                }])
                 setNewEmail('')
                 setNewRole('EMPLOYEE')
                 setShowAddForm(false)
-                if (member.invited) {
-                    setSuccess(`Invite email sent to ${member.email}! They can set their password and log in.`)
-                } else {
-                    setSuccess(`${member.name || member.email} added to the organization.`)
-                }
+                setSuccess(`Invitation sent to ${data.email}!`)
+                setActiveTab('invites')
             } else {
                 const err = await res.json()
-                setError(err.error || 'Failed to add member')
+                setError(err.error || 'Failed to invite user')
             }
         } catch {
-            setError('Failed to add member')
+            setError('Failed to invite user')
         } finally {
             setAdding(false)
+        }
+    }
+
+    const handleResendInvite = async (inviteId: string) => {
+        try {
+            const res = await fetch('/api/invites', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ inviteId, action: 'resend' }),
+            })
+            if (res.ok) {
+                alert('Invite resent successfully!')
+            } else {
+                const err = await res.json()
+                alert(err.error || 'Failed to resend invite')
+            }
+        } catch {
+            alert('Failed to resend invite')
+        }
+    }
+
+    const handleCancelInvite = async (inviteId: string) => {
+        if (!confirm('Cancel this invitation?')) return
+        try {
+            const res = await fetch('/api/invites', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ inviteId, action: 'cancel' }),
+            })
+            if (res.ok) {
+                setInvites(invites.filter(i => i.id !== inviteId))
+            } else {
+                const err = await res.json()
+                alert(err.error || 'Failed to cancel invite')
+            }
+        } catch {
+            alert('Failed to cancel invite')
         }
     }
 
@@ -121,7 +184,6 @@ export default function OrganizationManagePage() {
     return (
         <div className="min-h-screen bg-gray-50">
             <main className="max-w-4xl mx-auto px-4 py-6">
-                {/* Header */}
                 <div className="mb-6">
                     <button
                         onClick={() => router.push('/dashboard/organizations')}
@@ -135,18 +197,17 @@ export default function OrganizationManagePage() {
                                 <Shield className="w-5 h-5 text-purple-600" />
                                 {org?.name || 'Organization'}
                             </h1>
-                            <p className="text-sm text-gray-500 mt-1">Manage members of this organization</p>
+                            <p className="text-sm text-gray-500 mt-1">Manage members and invitations</p>
                         </div>
                         <button
                             onClick={() => setShowAddForm(true)}
                             className="flex items-center gap-2 px-3 py-2 bg-black text-white text-sm rounded-md hover:bg-gray-800 transition-colors"
                         >
-                            <UserPlus className="w-4 h-4" /> Add Member
+                            <UserPlus className="w-4 h-4" /> Invite Member
                         </button>
                     </div>
                 </div>
 
-                {/* Success Banner */}
                 {success && (
                     <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex justify-between items-center">
                         <span>{success}</span>
@@ -154,10 +215,9 @@ export default function OrganizationManagePage() {
                     </div>
                 )}
 
-                {/* Add Member Form */}
                 {showAddForm && (
                     <div className="bg-white border rounded-lg p-4 mb-4">
-                        <h3 className="text-sm font-medium mb-3">Add New Member</h3>
+                        <h3 className="text-sm font-medium mb-3">Invite New Member</h3>
                         {error && (
                             <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
                                 {error}
@@ -171,7 +231,7 @@ export default function OrganizationManagePage() {
                                     placeholder="employee@example.com"
                                     value={newEmail}
                                     onChange={(e) => setNewEmail(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleAddMember()}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                                     className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-black"
                                     autoFocus
                                 />
@@ -188,12 +248,12 @@ export default function OrganizationManagePage() {
                                 </select>
                             </div>
                             <button
-                                onClick={handleAddMember}
+                                onClick={handleInvite}
                                 disabled={adding || !newEmail.trim()}
                                 className="px-4 py-2 bg-black text-white text-sm rounded-md hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2"
                             >
                                 {adding && <Loader2 className="w-4 h-4 animate-spin" />}
-                                Add
+                                Invite
                             </button>
                             <button
                                 onClick={() => { setShowAddForm(false); setError(''); setNewEmail('') }}
@@ -205,73 +265,159 @@ export default function OrganizationManagePage() {
                     </div>
                 )}
 
-                {/* Members Table */}
                 <div className="bg-white border rounded-lg overflow-hidden">
-                    <div className="px-4 py-3 border-b bg-gray-50 flex items-center gap-2">
-                        <Users className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm font-medium text-gray-700">
+                    <div className="flex border-b">
+                        <button
+                            onClick={() => setActiveTab('members')}
+                            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                                activeTab === 'members'
+                                    ? 'border-black text-black'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                            <Users className="w-4 h-4" />
                             Members ({members.length})
-                        </span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('invites')}
+                            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                                activeTab === 'invites'
+                                    ? 'border-black text-black'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                            <Mail className="w-4 h-4" />
+                            Pending Invites ({invites.length})
+                        </button>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="border-b">
-                                <tr>
-                                    <th className="px-4 py-2 text-left font-medium text-gray-600">Name</th>
-                                    <th className="px-4 py-2 text-left font-medium text-gray-600">Email</th>
-                                    <th className="px-4 py-2 text-left font-medium text-gray-600">Role</th>
-                                    <th className="px-4 py-2 text-left font-medium text-gray-600">Joined</th>
-                                    <th className="px-4 py-2"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                                {members.length === 0 ? (
+
+                    {activeTab === 'members' && (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="border-b">
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                                            No members yet. Add your first team member above.
-                                        </td>
+                                        <th className="px-4 py-2 text-left font-medium text-gray-600">Name</th>
+                                        <th className="px-4 py-2 text-left font-medium text-gray-600">Email</th>
+                                        <th className="px-4 py-2 text-left font-medium text-gray-600">Role</th>
+                                        <th className="px-4 py-2 text-left font-medium text-gray-600">Joined</th>
+                                        <th className="px-4 py-2"></th>
                                     </tr>
-                                ) : (
-                                    members.map((member) => (
-                                        <tr key={member.id} className="hover:bg-gray-50">
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-7 h-7 bg-gray-200 rounded-full flex items-center justify-center">
-                                                        <span className="text-xs font-medium">
-                                                            {member.name ? member.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U'}
-                                                        </span>
-                                                    </div>
-                                                    <span className="font-medium">{member.name || 'Unknown'}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-gray-600">{member.email}</td>
-                                            <td className="px-4 py-3">
-                                                <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${member.role === 'ORG_ADMIN'
-                                                    ? 'bg-purple-100 text-purple-700'
-                                                    : 'bg-blue-100 text-blue-700'
-                                                    }`}>
-                                                    {member.role === 'ORG_ADMIN' && <Crown className="w-3 h-3" />}
-                                                    {member.role === 'ORG_ADMIN' ? 'Admin' : 'Employee'}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-gray-500 text-xs">
-                                                {new Date(member.createdAt).toLocaleDateString('en-IN')}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <button
-                                                    onClick={() => handleRemove(member.userId, member.name || member.email)}
-                                                    className="p-1 hover:bg-red-50 text-red-500 rounded transition-colors"
-                                                    title="Remove member"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {members.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                                                No members yet. Invite your first team member.
                                             </td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    ) : (
+                                        members.map((member) => (
+                                            <tr key={member.id} className="hover:bg-gray-50">
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-7 h-7 bg-gray-200 rounded-full flex items-center justify-center">
+                                                            <span className="text-xs font-medium">
+                                                                {member.name ? member.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U'}
+                                                            </span>
+                                                        </div>
+                                                        <span className="font-medium">{member.name || 'Unknown'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-gray-600">{member.email}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${member.role === 'ORG_ADMIN'
+                                                        ? 'bg-purple-100 text-purple-700'
+                                                        : 'bg-blue-100 text-blue-700'
+                                                        }`}>
+                                                        {member.role === 'ORG_ADMIN' && <Crown className="w-3 h-3" />}
+                                                        {member.role === 'ORG_ADMIN' ? 'Admin' : 'Employee'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-gray-500 text-xs">
+                                                    {new Date(member.createdAt).toLocaleDateString('en-IN')}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <button
+                                                        onClick={() => handleRemove(member.userId, member.name || member.email)}
+                                                        className="p-1 hover:bg-red-50 text-red-500 rounded transition-colors"
+                                                        title="Remove member"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {activeTab === 'invites' && (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="border-b">
+                                    <tr>
+                                        <th className="px-4 py-2 text-left font-medium text-gray-600">Email</th>
+                                        <th className="px-4 py-2 text-left font-medium text-gray-600">Role</th>
+                                        <th className="px-4 py-2 text-left font-medium text-gray-600">Status</th>
+                                        <th className="px-4 py-2 text-left font-medium text-gray-600">Invited</th>
+                                        <th className="px-4 py-2"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {invites.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                                                No pending invitations.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        invites.map((invite) => (
+                                            <tr key={invite.id} className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-gray-600">{invite.email}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${invite.role === 'ORG_ADMIN'
+                                                        ? 'bg-purple-100 text-purple-700'
+                                                        : 'bg-blue-100 text-blue-700'
+                                                        }`}>
+                                                        {invite.role === 'ORG_ADMIN' && <Crown className="w-3 h-3" />}
+                                                        {invite.role === 'ORG_ADMIN' ? 'Admin' : 'Employee'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-yellow-100 text-yellow-700">
+                                                        Pending
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-gray-500 text-xs">
+                                                    {new Date(invite.createdAt).toLocaleDateString('en-IN')}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={() => handleResendInvite(invite.id)}
+                                                            className="p-1 hover:bg-blue-50 text-blue-500 rounded transition-colors"
+                                                            title="Resend invite"
+                                                        >
+                                                            <RefreshCw className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleCancelInvite(invite.id)}
+                                                            className="p-1 hover:bg-red-50 text-red-500 rounded transition-colors"
+                                                            title="Cancel invite"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             </main>
         </div>

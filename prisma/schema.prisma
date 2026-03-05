@@ -21,6 +21,7 @@ model Organization {
   invoices    Invoice[]
   products    Product[]
   settings    CompanySettings[]
+  invites     Invite[]
 }
 
 model OrganizationMembership {
@@ -36,6 +37,21 @@ model OrganizationMembership {
   @@index([organizationId])
 }
 
+model Invite {
+  id             String       @id @default(cuid())
+  email          String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           OrgRole
+  status         String       @default("pending")
+  invitedBy      String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([email, organizationId])
+}
+
 model CompanySettings {
   id                String       @id @default(cuid())
   organizationId    String
@@ -47,7 +63,7 @@ model CompanySettings {
   panNo             String
   cinNo             String?
   msmeNo            String?
-  emailFrom         String    @default("onboarding@resend.dev")
+  emailFrom         String       @default("onboarding@resend.dev")
   termsConditions   String
   signatureImageUrl String?
 
@@ -81,105 +97,105 @@ model ProductComponent {
 }
 
 model Quotation {
-  id              String          @id @default(cuid())
+  id              String       @id @default(cuid())
   organizationId  String
-  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdByUserId String
-  quotationNo     String          @unique
-  date            DateTime        @default(now())
+  quotationNo     String       @unique
+  date            DateTime     @default(now())
 
-  toCompanyName   String
-  toAddress       String
-  toGstNo         String?
-  toPhone         String?
-  toEmail         String?
+  toCompanyName String
+  toAddress     String
+  toGstNo       String?
+  toPhone       String?
+  toEmail       String?
 
-  subtotal        Float
-  discountType    String?         @default("percentage")
-  discountValue   Float?
-  discountAmount  Float?
+  subtotal       Float
+  discountType   String? @default("percentage")
+  discountValue  Float?
+  discountAmount Float?
 
-  gstPercent      Float           @default(18)
-  gstAmount       Float
-  totalAmount     Float
+  gstPercent  Float @default(18)
+  gstAmount   Float
+  totalAmount Float
 
-  status          String          @default("draft")
+  status          String  @default("draft")
   notes           String?
   termsConditions String?
 
-  invoiceId       String?         @unique
-  invoice         Invoice?        @relation(fields: [invoiceId], references: [id])
+  invoiceId String?  @unique
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
 
-  items           QuotationItem[]
+  items QuotationItem[]
 
-  createdAt       DateTime        @default(now())
+  createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
   @@index([organizationId])
 }
 
 model QuotationItem {
-  id               String    @id @default(cuid())
-  quotationId      String
-  quotation        Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
 
-  componentName    String
-  sacCode          String?
-  quantity         Int
-  unitPrice        Float
-  totalPrice       Float
+  componentName String
+  sacCode       String?
+  quantity      Int
+  unitPrice     Float
+  totalPrice    Float
 
-  isProductHeader  Boolean  @default(false)
-  sortOrder        Int      @default(0)
+  isProductHeader Boolean @default(false)
+  sortOrder       Int     @default(0)
 }
 
 model Invoice {
-  id              String          @id @default(cuid())
+  id              String       @id @default(cuid())
   organizationId  String
-  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdByUserId String
-  invoiceNo       String          @unique
-  invoiceDate     DateTime        @default(now())
+  invoiceNo       String       @unique
+  invoiceDate     DateTime     @default(now())
 
-  quotation       Quotation?
+  quotation Quotation?
 
-  toCompanyName   String
-  toAddress       String
-  toGstNo         String?
-  toPhone         String?
-  toEmail         String?
+  toCompanyName String
+  toAddress     String
+  toGstNo       String?
+  toPhone       String?
+  toEmail       String?
 
-  subtotal        Float
-  discountType    String?         @default("percentage")
-  discountValue   Float?
-  discountAmount  Float?
+  subtotal       Float
+  discountType   String? @default("percentage")
+  discountValue  Float?
+  discountAmount Float?
 
-  gstPercent      Float           @default(18)
-  gstAmount       Float
-  totalAmount     Float
+  gstPercent  Float @default(18)
+  gstAmount   Float
+  totalAmount Float
 
-  status          String          @default("pending")
+  status          String  @default("pending")
   notes           String?
   termsConditions String?
 
-  items           InvoiceItem[]
+  items InvoiceItem[]
 
-  createdAt       DateTime        @default(now())
+  createdAt DateTime @default(now())
 
   @@index([organizationId])
 }
 
 model InvoiceItem {
-  id               String   @id @default(cuid())
-  invoiceId        String
-  invoice          Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
-  componentName    String
-  sacCode          String?
-  quantity         Int
-  unitPrice        Float
-  totalPrice       Float
+  componentName String
+  sacCode       String?
+  quantity      Int
+  unitPrice     Float
+  totalPrice    Float
 
-  isProductHeader  Boolean  @default(false)
-  sortOrder        Int      @default(0)
+  isProductHeader Boolean @default(false)
+  sortOrder       Int     @default(0)
 }
