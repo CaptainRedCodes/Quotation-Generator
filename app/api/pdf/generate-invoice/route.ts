@@ -1,3 +1,4 @@
+// Invoice PDF generation
 import { NextResponse } from 'next/server'
 import PDFDocument from 'pdfkit'
 import { db } from '@/lib/db'
