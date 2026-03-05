@@ -26,7 +26,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm p-6 bg-white border rounded-lg">
         <div className="mb-6 text-center">
-          <h1 className="text-lg font-semibold">ADISEN TECH</h1>
+          <h1 className="text-lg font-semibold">Adisen Tech</h1>
           <p className="text-sm text-gray-500">Sign in to continue</p>
         </div>
 
