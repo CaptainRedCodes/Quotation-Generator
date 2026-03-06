@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { Loader2, ArrowLeft, FileDown, Trash2, Plus, Check, Mail } from 'lucide-react'
+import { Loader2, ArrowLeft, FileDown, Trash2, Plus, Check } from 'lucide-react'
 import Link from 'next/link'
 import { formatIndianCurrency, formatDate } from '@/lib/utils'
 import { APP_CONFIG } from '@/lib/constants'
-import { EmailModal } from '@/components/EmailModal'
+// import { EmailModal } from '@/components/EmailModal' // Email feature commented out
 import { useOrg } from '@/components/OrgContext'
 
 interface QuotationItem {
@@ -53,7 +53,7 @@ export default function QuotationPage() {
   const [showComponents, setShowComponents] = useState(true)
   const [creatingInvoice, setCreatingInvoice] = useState(false)
   const [invoiceNo, setInvoiceNo] = useState('')
-  const [showEmailModal, setShowEmailModal] = useState(false)
+  // const [showEmailModal, setShowEmailModal] = useState(false) // Email feature commented out
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
@@ -258,12 +258,14 @@ export default function QuotationPage() {
                   <FileDown className="w-4 h-4" /> Download PDF
                 </button>
 
+                {/* Email feature commented out
                 <button
                   onClick={() => setShowEmailModal(true)}
                   className="flex items-center justify-center gap-2 w-full px-4 py-2 border border-green-600 text-green-700 rounded-md hover:bg-green-50 font-medium"
                 >
                   <Mail className="w-4 h-4" /> Send Email
                 </button>
+                */}
 
                 <button
                   onClick={deleteQuotation}
@@ -277,7 +279,7 @@ export default function QuotationPage() {
         </div>
       </div>
 
-      {/* Email Modal — uses quotation.id directly, no savedQuotationId needed */}
+      {/* Email Modal commented out
       {showEmailModal && (
         <EmailModal
           quotationId={quotation.id}
@@ -291,10 +293,11 @@ export default function QuotationPage() {
           onClose={() => setShowEmailModal(false)}
           onSuccess={() => {
             setShowEmailModal(false)
-            loadQuotation() // refresh status to 'sent'
+            loadQuotation()
           }}
         />
       )}
+      */}
     </div>
   )
 }

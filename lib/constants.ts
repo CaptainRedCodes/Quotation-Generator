@@ -3,7 +3,7 @@ export const APP_CONFIG = {
   defaultGstPercent: 18,
   defaultCurrency: 'INR',
   currencySymbol: '₹',
-  defaultEmailFrom: 'onboarding@resend.dev',
+  defaultEmailFrom: 'noreply@example.com',
 } as const
 
 export const QUOTATION_CONFIG = {

@@ -249,11 +249,11 @@ export default function SettingsPage() {
                     type="email"
                     value={settings.emailFrom || ''}
                     onChange={(e) => setSettings({ ...settings, emailFrom: e.target.value })}
-                    placeholder="onboarding@resend.dev"
+                    placeholder="yourname@gmail.com"
                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <p className="text-xs text-slate-500 mt-1">
-                    Leave empty to use the default: onboarding@resend.dev
+                    Uses SMTP_USER environment variable by default
                   </p>
                 </div>
                 <div className="pt-4">
@@ -390,23 +390,24 @@ export default function SettingsPage() {
             {activeTab === 'email' && (
               <div className="space-y-4">
                 <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                  <h3 className="font-medium text-green-900 mb-2">Default Sender Email</h3>
+                  <h3 className="font-medium text-green-900 mb-2">Email Configuration (Gmail SMTP)</h3>
                   <p className="text-sm text-green-800">
-                    All emails are sent from <strong>onboarding@resend.dev</strong> by default.
-                    You can change this in Company Details → Email From Address.
+                    Emails are sent using Gmail SMTP. The sender address is your Gmail address
+                    configured in the <code>SMTP_USER</code> environment variable.
                   </p>
                 </div>
 
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h3 className="font-medium text-blue-900 mb-2">Resend Configuration</h3>
+                  <h3 className="font-medium text-blue-900 mb-2">Gmail SMTP Setup</h3>
                   <p className="text-sm text-blue-800">
-                    To configure email, add your Resend API key to the environment variable:
+                    Add the following environment variables:
                   </p>
-                  <code className="block mt-2 p-2 bg-white rounded text-sm">
-                    RESEND_API_KEY=re_123456789
+                  <code className="block mt-2 p-2 bg-white rounded text-sm whitespace-pre-wrap">
+                    {`SMTP_USER=yourname@gmail.com
+SMTP_PASS=your-app-password`}
                   </code>
                   <p className="text-xs text-blue-600 mt-2">
-                    Sign up at resend.com to get a free API key (3000 emails/month free)
+                    Generate an App Password at: Google Account → Security → 2-Step Verification → App Passwords
                   </p>
                 </div>
 
@@ -420,7 +421,7 @@ export default function SettingsPage() {
                 </button>
 
                 <p className="text-xs text-slate-500">
-                  Test email will be sent to the configured sender address.
+                  Test email will be sent to verify your Gmail SMTP configuration.
                 </p>
               </div>
             )}

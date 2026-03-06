@@ -1,6 +1,19 @@
+// Email sending route - COMMENTED OUT (email features disabled for quotations/invoices)
+// This route was used to send quotation PDFs via email using Resend.
+// To re-enable, uncomment the code below and update to use the sendEmail helper from @/lib/email.
+
+import { NextResponse } from 'next/server'
+
+export async function POST() {
+  return NextResponse.json(
+    { error: 'Email sending is currently disabled. This feature will be re-enabled in a future update.' },
+    { status: 503 }
+  )
+}
+
+/*
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import { generatePDF } from '@/lib/pdf'
 import { formatIndianCurrency, formatDate } from '@/lib/utils'
 import { sendEmailSchema } from '@/lib/validators'
@@ -12,8 +25,7 @@ import {
   isForbidden,
   requireOrgIdFromHeaders,
 } from '@/lib/authorization'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+import { sendEmail } from '@/lib/email'
 
 export async function POST(request: Request) {
   const authResult = await requireAuth()
@@ -28,7 +40,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
 
-    // Validate request body
     const validation = sendEmailSchema.safeParse(body)
     if (!validation.success) {
       return NextResponse.json(
@@ -80,37 +91,22 @@ ${settings.companyName}`
 
     const emailHtml = (message || defaultMessage).replace(/\n/g, '<br>')
 
-    const data = await resend.emails.send({
-      from: settings.emailFrom || APP_CONFIG.defaultEmailFrom,
-      to,
-      cc: cc || undefined,
-      subject: subject || defaultSubject,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <pre style="font-family: Arial, sans-serif; white-space: pre-wrap;">${emailHtml}</pre>
-        </div>
-      `,
-      attachments: [
-        {
-          filename: `quotation-${quotation.quotationNo}.pdf`,
-          content: pdfBuffer
-        }
-      ]
-    })
-
-    if (data.error) {
-      console.error('Resend API error:', data.error)
-      return NextResponse.json({ error: data.error.message || 'Failed to send email' }, { status: 400 })
-    }
+    // TODO: Re-enable with sendEmail and attachment support
+    // await sendEmail({
+    //   to,
+    //   subject: subject || defaultSubject,
+    //   html: emailHtml,
+    // })
 
     await db.quotation.update({
       where: { id: quotationId },
       data: { status: 'sent' }
     })
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Email error:', error)
     return NextResponse.json({ error: 'Failed to send email' }, { status: 500 })
   }
 }
+*/

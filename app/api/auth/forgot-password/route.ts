@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { Resend } from 'resend'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+import { sendEmail } from '@/lib/email'
 
 export async function POST(request: Request) {
     try {
@@ -48,8 +46,7 @@ export async function POST(request: Request) {
             if (token) {
                 const resetUrl = `${siteUrl}/reset-password?token=${token}`
 
-                await resend.emails.send({
-                    from: process.env.RESEND_FROM_EMAIL || 'Arinox Quote Generator <onboarding@resend.dev>',
+                await sendEmail({
                     to: email.toLowerCase(),
                     subject: 'Reset your password',
                     html: `

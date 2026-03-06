@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { Loader2, FileDown, Mail, ArrowLeft, CheckCircle, Clock, XCircle } from 'lucide-react'
+import { Loader2, FileDown, ArrowLeft, CheckCircle, Clock, XCircle } from 'lucide-react'
 import { formatIndianCurrency, amountToWords, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import { useOrg } from '@/components/OrgContext'
@@ -49,7 +49,6 @@ export default function InvoiceDetailPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [invoice, setInvoice] = useState<Invoice | null>(null)
-  const [showEmailModal, setShowEmailModal] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -169,8 +168,8 @@ export default function InvoiceDetailPage() {
             <Link href="/dashboard" className="text-gray-500 hover:text-gray-700">←</Link>
             <h1 className="text-lg font-semibold">TAX Invoice</h1>
             <span className={`px-2 py-0.5 text-xs rounded-full ${invoice.status === 'paid' ? 'bg-green-100 text-green-700'
-                : invoice.status === 'overdue' ? 'bg-red-100 text-red-700'
-                  : 'bg-amber-100 text-amber-700'
+              : invoice.status === 'overdue' ? 'bg-red-100 text-red-700'
+                : 'bg-amber-100 text-amber-700'
               }`}>{invoice.status}</span>
           </div>
           <button onClick={handleDownloadPDF} disabled={downloading} className="px-3 py-1.5 bg-black text-white text-sm rounded-md disabled:opacity-50">
@@ -303,8 +302,8 @@ export default function InvoiceDetailPage() {
               onClick={() => handleStatusChange('pending')}
               disabled={updatingStatus || invoice.status === 'pending'}
               className={`flex items-center gap-2 px-4 py-2 rounded-md border ${invoice.status === 'pending'
-                  ? 'bg-amber-100 border-amber-300 text-amber-800'
-                  : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                ? 'bg-amber-100 border-amber-300 text-amber-800'
+                : 'border-slate-300 text-slate-600 hover:bg-slate-50'
                 } disabled:opacity-50`}
             >
               <Clock className="w-4 h-4" />
@@ -314,8 +313,8 @@ export default function InvoiceDetailPage() {
               onClick={() => handleStatusChange('paid')}
               disabled={updatingStatus || invoice.status === 'paid'}
               className={`flex items-center gap-2 px-4 py-2 rounded-md border ${invoice.status === 'paid'
-                  ? 'bg-green-100 border-green-300 text-green-800'
-                  : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                ? 'bg-green-100 border-green-300 text-green-800'
+                : 'border-slate-300 text-slate-600 hover:bg-slate-50'
                 } disabled:opacity-50`}
             >
               <CheckCircle className="w-4 h-4" />
@@ -325,8 +324,8 @@ export default function InvoiceDetailPage() {
               onClick={() => handleStatusChange('overdue')}
               disabled={updatingStatus || invoice.status === 'overdue'}
               className={`flex items-center gap-2 px-4 py-2 rounded-md border ${invoice.status === 'overdue'
-                  ? 'bg-red-100 border-red-300 text-red-800'
-                  : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                ? 'bg-red-100 border-red-300 text-red-800'
+                : 'border-slate-300 text-slate-600 hover:bg-slate-50'
                 } disabled:opacity-50`}
             >
               <XCircle className="w-4 h-4" />

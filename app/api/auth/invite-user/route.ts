@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import { db } from '@/lib/db'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+import { sendEmail } from '@/lib/email'
 
 const generateTempPassword = (): string => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz0123456789'
@@ -105,8 +103,7 @@ export async function POST(request: Request) {
 
     // Send email with credentials
     try {
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || 'Arinox Quote Generator <onboarding@resend.dev>',
+      await sendEmail({
         to: email.toLowerCase(),
         subject: `Your login credentials for ${orgName || 'Arinox Quote Generator'}`,
         html: `

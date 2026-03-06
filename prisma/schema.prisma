@@ -63,7 +63,7 @@ model CompanySettings {
   panNo             String
   cinNo             String?
   msmeNo            String?
-  emailFrom         String       @default("onboarding@resend.dev")
+  emailFrom         String       @default("noreply@example.com")
   termsConditions   String
   signatureImageUrl String?
 

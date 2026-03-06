@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { Loader2, Plus, Trash2, Save, FileDown, Mail, X, AlertCircle, ArrowLeft } from 'lucide-react'
+import { Loader2, Plus, Trash2, Save, FileDown, X, AlertCircle, ArrowLeft } from 'lucide-react'
 import { formatIndianCurrency, amountToWords, generateQuotationNo, formatDate } from '@/lib/utils'
-import { EmailModal } from '@/components/EmailModal'
+// import { EmailModal } from '@/components/EmailModal' // Email feature commented out
 import Link from 'next/link'
 import { useOrg } from '@/components/OrgContext'
 
@@ -43,7 +43,7 @@ export default function NewQuotationPage() {
   const [downloading, setDownloading] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
   const [showPreview, setShowPreview] = useState(false)
-  const [showEmailModal, setShowEmailModal] = useState(false)
+  // const [showEmailModal, setShowEmailModal] = useState(false) // Email feature commented out
   const [savedQuotationId, setSavedQuotationId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -238,10 +238,10 @@ export default function NewQuotationPage() {
     }
   }
 
-  const handleSendEmail = () => {
-    if (!savedQuotationId) return
-    setShowEmailModal(true)
-  }
+  // const handleSendEmail = () => { // Email feature commented out
+  //   if (!savedQuotationId) return
+  //   setShowEmailModal(true)
+  // }
 
   if (loading) {
     return (
@@ -280,7 +280,7 @@ export default function NewQuotationPage() {
         {saveSuccess && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
             <p className="text-green-800 text-sm font-medium">
-              ✓ Quotation saved. You can now download the PDF or send via email.
+              ✓ Quotation saved. You can now download the PDF.
             </p>
             <button
               onClick={() => router.push('/dashboard')}
@@ -525,6 +525,7 @@ export default function NewQuotationPage() {
                     {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
                     Download PDF
                   </button>
+                  {/* Email feature commented out
                   <button
                     onClick={handleSendEmail}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-green-600 text-green-700 rounded-md hover:bg-green-50 font-medium"
@@ -532,6 +533,7 @@ export default function NewQuotationPage() {
                     <Mail className="w-4 h-4" />
                     Send Email
                   </button>
+                  */}
                   <button
                     onClick={() => router.push('/dashboard')}
                     className="w-full px-4 py-2 text-sm text-slate-500 hover:text-slate-700 text-center"
@@ -668,6 +670,7 @@ export default function NewQuotationPage() {
         </div>
       )}
 
+      {/* Email modal commented out
       {showEmailModal && savedQuotationId && (
         <EmailModal
           quotationId={savedQuotationId}
@@ -685,6 +688,7 @@ export default function NewQuotationPage() {
           }}
         />
       )}
+      */}
     </div>
   )
 }
