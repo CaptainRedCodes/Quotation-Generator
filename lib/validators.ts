@@ -18,11 +18,20 @@ export const createQuotationSchema = z.object({
   toAddress: z.string().min(1, 'Address is required'),
   toGstNo: z.string().optional().nullable(),
   toPhone: z.string().optional().nullable(),
-  toEmail: z.string().email('Invalid email').optional().nullable(),
+  toEmail: z.union([z.string().email('Invalid email'), z.literal('')]).optional().nullable(),
   quotationNo: z.string().optional(),
   date: z.string().optional(),
   termsConditions: z.string().optional().nullable(),
   status: z.enum(['draft', 'sent', 'accepted']).optional().default('draft'),
+  isDraft: z.boolean().optional(),
+  discountType: z.enum(['percentage', 'fixed']).optional(),
+  discountValue: z.number().optional(),
+  discountAmount: z.number().optional(),
+  gstType: z.string().optional().default('igst'),
+  gstPercent: z.number().optional(),
+  gstAmount: z.number().optional(),
+  subtotal: z.number().optional(),
+  totalAmount: z.number().optional(),
   items: z.array(
     z.object({
       componentName: z.string(),
@@ -36,12 +45,72 @@ export const createQuotationSchema = z.object({
   ).min(1, 'At least one item is required')
 })
 
+export const createQuotationDraftSchema = z.object({
+  toCompanyName: z.string().optional(),
+  toAddress: z.string().optional(),
+  toGstNo: z.string().optional().nullable(),
+  toPhone: z.string().optional().nullable(),
+  toEmail: z.union([z.string().email('Invalid email'), z.literal('')]).optional().nullable(),
+  quotationNo: z.string().optional(),
+  date: z.string().optional(),
+  termsConditions: z.string().optional().nullable(),
+  status: z.enum(['draft', 'sent', 'accepted']).optional().default('draft'),
+  isDraft: z.boolean().optional(),
+  discountType: z.enum(['percentage', 'fixed']).optional(),
+  discountValue: z.number().optional(),
+  discountAmount: z.number().optional(),
+  gstType: z.string().optional().default('igst'),
+  gstPercent: z.number().optional(),
+  gstAmount: z.number().optional(),
+  subtotal: z.number().optional(),
+  totalAmount: z.number().optional(),
+  items: z.array(
+    z.object({
+      componentName: z.string(),
+      sacCode: z.string().optional().nullable(),
+      quantity: z.number().min(0),
+      unitPrice: z.number().min(0),
+      totalPrice: z.number().optional(),
+      isProductHeader: z.boolean().optional().default(false),
+      sortOrder: z.number().optional()
+    })
+  ).optional()
+})
+
 export const updateQuotationSchema = createQuotationSchema.extend({
   quotationNo: z.string().optional(),
   date: z.string().optional(),
   status: z.enum(['draft', 'sent', 'accepted']).optional(),
   discountType: z.enum(['percentage', 'fixed']).optional(),
   discountValue: z.number().optional()
+})
+
+export const updateQuotationDetailsSchema = z.object({
+  toCompanyName: z.string().optional(),
+  toAddress: z.string().optional(),
+  toGstNo: z.string().optional().nullable(),
+  toPhone: z.string().optional().nullable(),
+  toEmail: z.union([z.string().email('Invalid email'), z.literal('')]).optional().nullable(),
+  termsConditions: z.string().optional().nullable(),
+  status: z.enum(['draft', 'sent', 'accepted']).optional(),
+  discountType: z.enum(['percentage', 'fixed']).optional(),
+  discountValue: z.number().optional(),
+  gstType: z.string().optional(),
+  gstPercent: z.number().optional(),
+  gstAmount: z.number().optional(),
+  totalAmount: z.number().optional(),
+  items: z.array(
+    z.object({
+      id: z.string().optional(),
+      componentName: z.string(),
+      sacCode: z.string().optional().nullable(),
+      quantity: z.number().min(0),
+      unitPrice: z.number().min(0),
+      totalPrice: z.number().optional(),
+      isProductHeader: z.boolean().optional().default(false),
+      sortOrder: z.number().optional()
+    })
+  ).optional()
 })
 
 export const createProductSchema = z.object({
@@ -69,7 +138,9 @@ export const updateSettingsSchema = z.object({
   cinNo: z.string().optional().nullable(),
   msmeNo: z.string().optional().nullable(),
   emailFrom: z.string().email('Invalid email address').optional().nullable(),
-  termsConditions: z.string().optional().nullable()
+  termsConditions: z.string().optional().nullable(),
+  invoiceTermsConditions: z.string().optional().nullable(),
+  quotationTermsConditions: z.string().optional().nullable()
 })
 
 export const sendEmailSchema = z.object({
@@ -92,11 +163,12 @@ export const createInvoiceSchema = z.object({
   toAddress: z.string().min(1, 'Address is required'),
   toGstNo: z.string().optional().nullable(),
   toPhone: z.string().optional().nullable(),
-  toEmail: z.string().email('Invalid email').optional().nullable(),
+  toEmail: z.union([z.string().email('Invalid email'), z.literal('')]).optional().nullable(),
   subtotal: z.number().min(0),
   discountType: z.enum(['percentage', 'fixed']).optional(),
   discountValue: z.number().optional(),
   discountAmount: z.number().optional(),
+  gstType: z.string().optional(),
   gstPercent: z.number().min(0),
   gstAmount: z.number().min(0),
   totalAmount: z.number().min(0),
@@ -132,7 +204,6 @@ export const generateInvoicePdfSchema = z.object({
 })
 
 export const changePasswordSchema = z.object({
-  userId: z.string().min(1, 'User ID is required'),
   newPassword: z.string().min(8, 'Password must be at least 8 characters')
 })
 

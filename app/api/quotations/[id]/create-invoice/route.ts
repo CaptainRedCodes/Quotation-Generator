@@ -25,7 +25,13 @@ export async function POST(
   try {
     const { id } = await params
     const body = await request.json()
-    const { invoiceNo, invoiceDate, notes } = body
+    const {
+      invoiceNo, invoiceDate,
+      toCompanyName, toAddress, toGstNo, toPhone, toEmail,
+      subtotal, discountType, discountValue, discountAmount,
+      gstPercent, gstAmount, totalAmount, gstType,
+      notes, termsConditions, items
+    } = body
 
     const quotation = await db.quotation.findFirst({
       where: { id, organizationId: orgId },
@@ -40,12 +46,14 @@ export async function POST(
       return NextResponse.json({ error: 'Quotation not found' }, { status: 404 })
     }
 
-    // Check if invoice already exists
     if (quotation.invoiceId) {
       return NextResponse.json({ error: 'Invoice already created for this quotation' }, { status: 400 })
     }
 
-    // Generate invoice number
+    if (quotation.status === 'draft') {
+      return NextResponse.json({ error: 'Cannot create invoice. Quotation must be confirmed first.' }, { status: 400 })
+    }
+
     const lastInvoice = await db.invoice.findFirst({
       where: { organizationId: orgId },
       orderBy: { createdAt: 'desc' }
@@ -53,38 +61,74 @@ export async function POST(
     const nextNo = lastInvoice ? parseInt(lastInvoice.invoiceNo.replace('INV-', '')) + 1 : 1
     const invoiceNumber = invoiceNo || `INV-${String(nextNo).padStart(4, '0')}`
 
-    // Create invoice from quotation data
+    const settings = await db.companySettings.findFirst({
+      where: { organizationId: orgId },
+    })
+
+    const invoiceTerms = termsConditions !== undefined
+      ? termsConditions
+      : (settings?.invoiceTermsConditions || quotation.termsConditions || '')
+
+    const finalSubtotal = subtotal !== undefined ? subtotal : quotation.subtotal
+    const finalDiscountType = discountType || quotation.discountType || 'percentage'
+    const finalDiscountValue = discountValue !== undefined ? discountValue : (quotation.discountValue || 0)
+    const finalDiscountAmount = discountAmount !== undefined
+      ? discountAmount
+      : (finalDiscountType === 'percentage'
+        ? finalSubtotal * (finalDiscountValue / 100)
+        : finalDiscountValue)
+    const finalGstPercent = gstPercent !== undefined ? gstPercent : (quotation.gstPercent || 18)
+    const finalGstAmount = gstAmount !== undefined
+      ? gstAmount
+      : ((finalSubtotal - finalDiscountAmount) * (finalGstPercent / 100))
+    const finalTotalAmount = totalAmount !== undefined
+      ? totalAmount
+      : (finalSubtotal - finalDiscountAmount + finalGstAmount)
+    const finalGstType = gstType || quotation.gstType || 'igst'
+
     const invoice = await db.invoice.create({
       data: {
         organizationId: orgId,
         createdByUserId: authResult.userId,
         invoiceNo: invoiceNumber,
         invoiceDate: invoiceDate ? new Date(invoiceDate) : new Date(),
-        toCompanyName: quotation.toCompanyName,
-        toAddress: quotation.toAddress,
-        toGstNo: quotation.toGstNo,
-        toPhone: quotation.toPhone,
-        toEmail: quotation.toEmail,
-        subtotal: quotation.subtotal,
-        discountType: quotation.discountType,
-        discountValue: quotation.discountValue,
-        discountAmount: quotation.discountAmount,
-        gstPercent: quotation.gstPercent || APP_CONFIG.defaultGstPercent,
-        gstAmount: quotation.gstAmount,
-        totalAmount: quotation.totalAmount,
+        toCompanyName: toCompanyName !== undefined ? toCompanyName : quotation.toCompanyName,
+        toAddress: toAddress !== undefined ? toAddress : quotation.toAddress,
+        toGstNo: toGstNo !== undefined ? (toGstNo || null) : quotation.toGstNo,
+        toPhone: toPhone !== undefined ? (toPhone || null) : quotation.toPhone,
+        toEmail: toEmail !== undefined ? (toEmail || null) : quotation.toEmail,
+        subtotal: finalSubtotal,
+        discountType: finalDiscountType,
+        discountValue: finalDiscountValue,
+        discountAmount: finalDiscountAmount,
+        gstPercent: finalGstPercent,
+        gstAmount: finalGstAmount,
+        totalAmount: finalTotalAmount,
+        gstType: finalGstType,
         status: 'pending',
-        notes: notes || null,
-        termsConditions: quotation.termsConditions,
+        isConfirmed: false,
+        notes: notes !== undefined ? (notes || null) : null,
+        termsConditions: invoiceTerms,
         items: {
-          create: quotation.items.map((item, index) => ({
-            componentName: item.componentName,
-            sacCode: item.sacCode,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice,
-            isProductHeader: item.isProductHeader,
-            sortOrder: index
-          }))
+          create: items && items.length > 0
+            ? items.map((item: any, index: number) => ({
+              componentName: item.componentName,
+              sacCode: item.sacCode || null,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.totalPrice,
+              isProductHeader: item.isProductHeader || false,
+              sortOrder: index
+            }))
+            : quotation.items.map((item, index) => ({
+              componentName: item.componentName,
+              sacCode: item.sacCode,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.totalPrice,
+              isProductHeader: item.isProductHeader,
+              sortOrder: index
+            }))
         }
       },
       include: {

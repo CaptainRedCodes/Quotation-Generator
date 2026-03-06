@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Adisen Tech - Quotation Generator",
-  description: "Quotation Generator for Adisen Tech Pvt Ltd",
+  title: " Ledgr Services",
+  description: "Quotation and Invoice Maintainer",
 };
 
 export default function RootLayout({

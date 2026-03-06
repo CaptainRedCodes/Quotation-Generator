@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createInvoiceSchema } from '@/lib/validators'
+import { Prisma } from '@prisma/client'
 import {
   requireAuth,
   isAuthError,
@@ -20,14 +21,65 @@ export async function GET(request: Request) {
   if (isForbidden(memberCheck)) return memberCheck
 
   try {
-    const invoices = await db.invoice.findMany({
-      where: { organizationId: orgId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        items: { orderBy: { sortOrder: 'asc' } }
+    const { searchParams } = new URL(request.url)
+
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 100)
+    const search = searchParams.get('search')
+    const status = searchParams.get('status')
+    const dateFrom = searchParams.get('dateFrom')
+    const dateTo = searchParams.get('dateTo')
+    const sortBy = searchParams.get('sortBy') || 'createdAt'
+    const sortOrder = searchParams.get('sortOrder') || 'desc'
+
+    const where: Prisma.InvoiceWhereInput = { organizationId: orgId }
+
+    if (search) {
+      where.OR = [
+        { toCompanyName: { contains: search, mode: 'insensitive' } },
+        { invoiceNo: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
+    if (status) {
+      where.status = status
+    }
+
+    if (dateFrom || dateTo) {
+      where.invoiceDate = {}
+      if (dateFrom) {
+        where.invoiceDate.gte = new Date(dateFrom)
+      }
+      if (dateTo) {
+        where.invoiceDate.lte = new Date(dateTo)
+      }
+    }
+
+    const orderByObj: any = {}
+    orderByObj[sortBy] = sortOrder
+
+    const [invoices, total] = await Promise.all([
+      db.invoice.findMany({
+        where,
+        orderBy: orderByObj,
+        include: {
+          items: { orderBy: { sortOrder: 'asc' } }
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      db.invoice.count({ where })
+    ])
+
+    return NextResponse.json({
+      data: invoices,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
       }
     })
-    return NextResponse.json(invoices)
   } catch (error) {
     console.error('Error fetching invoices:', error)
     return NextResponse.json({ error: 'Failed to fetch invoices' }, { status: 500 })
@@ -55,7 +107,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const { quotationId, invoiceNo, invoiceDate, toCompanyName, toAddress, toGstNo, toPhone, toEmail, subtotal, discountType, discountValue, discountAmount, gstPercent, gstAmount, totalAmount, status, notes, termsConditions, items } = validation.data
+    const { quotationId, invoiceNo, invoiceDate, toCompanyName, toAddress, toGstNo, toPhone, toEmail, subtotal, discountType, discountValue, discountAmount, gstType, gstPercent, gstAmount, totalAmount, status, notes, termsConditions, items } = validation.data
 
     const lastInvoice = await db.invoice.findFirst({
       where: { organizationId: orgId },
@@ -79,6 +131,7 @@ export async function POST(request: Request) {
         discountType: discountType || 'percentage',
         discountValue,
         discountAmount,
+        gstType,
         gstPercent,
         gstAmount,
         totalAmount,
@@ -111,7 +164,7 @@ export async function POST(request: Request) {
         await db.quotation.update({
           where: { id: quotationId },
           data: {
-            status: 'approved',
+            status: 'accepted',
             invoiceId: invoice.id
           }
         })

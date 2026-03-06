@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
-import { updateQuotationSchema } from '@/lib/validators'
+import { updateQuotationSchema, updateQuotationDetailsSchema } from '@/lib/validators'
 import { APP_CONFIG } from '@/lib/constants'
 import {
   requireAuth,
@@ -60,8 +60,14 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
+    // Check if this is a simple details update (no items) or full update
+    const isDetailsOnly = !body.items || body.items.length === 0
+
     // Validate request body
-    const validation = updateQuotationSchema.safeParse(body)
+    const validation = isDetailsOnly
+      ? updateQuotationDetailsSchema.safeParse(body)
+      : updateQuotationSchema.safeParse(body)
+
     if (!validation.success) {
       return NextResponse.json(
         { error: 'Invalid request', details: validation.error.flatten() },
@@ -77,65 +83,91 @@ export async function PUT(
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    const { toCompanyName, toAddress, toGstNo, toPhone, toEmail, items, termsConditions, status, quotationNo, date, discountType, discountValue } = validation.data
+    const data = validation.data
 
-    // Validate status
-    if (status && !VALID_STATUSES.includes(status)) {
-      return NextResponse.json(
-        { error: 'Invalid status. Must be one of: draft, sent, accepted' },
-        { status: 400 }
-      )
+    // Handle status update separately (can update status without items)
+    if (data.status) {
+      if (!VALID_STATUSES.includes(data.status)) {
+        return NextResponse.json(
+          { error: 'Invalid status. Must be one of: draft, sent, accepted' },
+          { status: 400 }
+        )
+      }
     }
 
-    let subtotal = 0
-    items.forEach((item) => {
-      if (!item.isProductHeader) {
-        subtotal += item.quantity * item.unitPrice
+    // If items are provided, recalculate totals
+    let subtotal = existing.subtotal
+    let discountAmount = existing.discountAmount || 0
+    let gstAmount = existing.gstAmount
+    let totalAmount = existing.totalAmount
+
+    if (!isDetailsOnly && data.items && data.items.length > 0) {
+      const items = data.items
+      subtotal = 0
+      items.forEach((item) => {
+        if (!item.isProductHeader) {
+          subtotal += item.quantity * item.unitPrice
+        }
+      })
+
+      const discountType = data.discountType || 'percentage'
+      const discountValue = data.discountValue || 0
+      discountAmount = discountType === 'percentage'
+        ? subtotal * (discountValue / 100)
+        : discountValue
+      const afterDiscount = subtotal - discountAmount
+      const gstPercent = APP_CONFIG.defaultGstPercent / 100
+      gstAmount = afterDiscount * gstPercent
+      totalAmount = afterDiscount + gstAmount
+    }
+
+    // Build update data
+    const updateData: any = {
+      toCompanyName: data.toCompanyName ?? existing.toCompanyName,
+      toAddress: data.toAddress ?? existing.toAddress,
+      toGstNo: data.toGstNo ?? existing.toGstNo,
+      toPhone: data.toPhone ?? existing.toPhone,
+      toEmail: data.toEmail ?? existing.toEmail,
+      termsConditions: data.termsConditions ?? existing.termsConditions,
+      subtotal,
+      discountAmount,
+      gstAmount,
+      totalAmount,
+    }
+
+    if (data.status) {
+      updateData.status = data.status
+    }
+    if (data.discountType) {
+      updateData.discountType = data.discountType
+    }
+    if (data.discountValue !== undefined) {
+      updateData.discountValue = data.discountValue
+    }
+
+    // Handle items update if provided
+    if (!isDetailsOnly && data.items && data.items.length > 0) {
+      // Delete existing items and create new ones
+      await db.quotationItem.deleteMany({
+        where: { quotationId: id }
+      })
+
+      updateData.items = {
+        create: data.items.map((item, index) => ({
+          componentName: item.componentName,
+          sacCode: item.sacCode || null,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.quantity * item.unitPrice,
+          isProductHeader: item.isProductHeader || false,
+          sortOrder: index
+        }))
       }
-    })
-
-    const discountAmount = discountType === 'percentage'
-      ? subtotal * ((discountValue || 0) / 100)
-      : (discountValue || 0)
-    const afterDiscount = subtotal - discountAmount
-    const gstPercent = APP_CONFIG.defaultGstPercent / 100
-    const gstAmount = afterDiscount * gstPercent
-    const totalAmount = afterDiscount + gstAmount
-
-    await db.quotationItem.deleteMany({
-      where: { quotationId: id }
-    })
+    }
 
     const quotation = await db.quotation.update({
       where: { id },
-      data: {
-        toCompanyName,
-        toAddress,
-        toGstNo: toGstNo || null,
-        toPhone: toPhone || null,
-        toEmail: toEmail || null,
-        subtotal,
-        discountType: discountType || 'percentage',
-        discountValue: discountValue || null,
-        discountAmount,
-        gstAmount,
-        totalAmount,
-        termsConditions: termsConditions || '',
-        status: status || 'draft',
-        quotationNo: quotationNo || undefined,
-        date: date ? new Date(date) : undefined,
-        items: {
-          create: items.map((item, index) => ({
-            componentName: item.componentName,
-            sacCode: item.sacCode || null,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: item.quantity * item.unitPrice,
-            isProductHeader: item.isProductHeader || false,
-            sortOrder: index
-          }))
-        }
-      },
+      data: updateData,
       include: {
         items: {
           orderBy: { sortOrder: 'asc' }

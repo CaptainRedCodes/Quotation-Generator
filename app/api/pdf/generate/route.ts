@@ -55,7 +55,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Company settings not found' }, { status: 404 })
     }
 
-    const pdfBuffer = await generatePDF(quotation, settings)
+    const settingsWithOrgId = {
+      ...settings,
+      organizationId: orgId
+    }
+
+    const pdfBuffer = await generatePDF(quotation, settingsWithOrgId)
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {

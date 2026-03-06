@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/email'
+import {
+  requireAuth,
+  isAuthError,
+  requireOrgAdmin,
+  isForbidden,
+  requireOrgIdFromHeaders,
+} from '@/lib/authorization'
 
 const generateTempPassword = (): string => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz0123456789'
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnopqrstuvwxyz0123456789'
   let pwd = ''
   for (let i = 0; i < 12; i++) {
     pwd += chars.charAt(Math.floor(Math.random() * chars.length))
@@ -13,6 +20,15 @@ const generateTempPassword = (): string => {
 
 export async function PUT(request: Request) {
   try {
+    const authResult = await requireAuth()
+    if (isAuthError(authResult)) return authResult
+
+    const orgId = requireOrgIdFromHeaders(request)
+    if (orgId instanceof NextResponse) return orgId
+
+    const adminCheck = await requireOrgAdmin(authResult.userId, orgId)
+    if (isForbidden(adminCheck)) return adminCheck
+
     const { inviteId, action } = await request.json()
 
     if (!inviteId || !action) {
@@ -28,6 +44,10 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Invite not found' }, { status: 404 })
     }
 
+    if (invite.organizationId !== orgId) {
+      return NextResponse.json({ error: 'Invite does not belong to this organization' }, { status: 403 })
+    }
+
     if (action === 'resend') {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
       const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -36,7 +56,6 @@ export async function PUT(request: Request) {
         return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
       }
 
-      // First, find the user by email to get their ID
       const listRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
         headers: {
           'Authorization': `Bearer ${supabaseServiceKey}`,
@@ -56,7 +75,6 @@ export async function PUT(request: Request) {
       const tempPassword = generateTempPassword()
 
       if (userId) {
-        // Update existing user's password and re-set mustChangePassword
         const updateRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
           method: 'PUT',
           headers: {
@@ -81,7 +99,6 @@ export async function PUT(request: Request) {
 
       const loginUrl = (process.env.NEXTAUTH_URL || 'http://localhost:3000') + '/login'
 
-      // Send email with new credentials
       try {
         await sendEmail({
           to: invite.email,

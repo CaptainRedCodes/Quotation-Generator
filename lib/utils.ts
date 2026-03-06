@@ -16,8 +16,8 @@ export function amountToWords(amount: number): string {
   const rupees = Math.floor(amount)
   const paise = Math.round((amount - rupees) * 100)
   
-  if (rupees === 0) {
-    return 'Zero'
+  if (rupees === 0 && paise === 0) {
+    return 'Zero Only'
   }
   
   const crores = Math.floor(rupees / 10000000)
@@ -40,7 +40,7 @@ export function amountToWords(amount: number): string {
     words += convertLessThanOneThousand(remaining)
   }
   
-  let result = 'INDIAN RUPEES ' + words.trim()
+  let result = 'Rs. ' + words.trim()
   
   if (paise > 0) {
     result += ' and ' + convertLessThanOneThousand(paise) + ' Paise'
@@ -68,7 +68,7 @@ export function generateQuotationNo(lastNo: string | null, date: Date): string {
 }
 
 export function formatIndianCurrency(amount: number): string {
-  return amount.toLocaleString('en-IN', {
+  return '₹' + amount.toLocaleString('en-IN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })

@@ -64,7 +64,9 @@ model CompanySettings {
   cinNo             String?
   msmeNo            String?
   emailFrom         String       @default("noreply@example.com")
-  termsConditions   String
+  termsConditions   String?
+  invoiceTermsConditions String?
+  quotationTermsConditions String?
   signatureImageUrl String?
 
   @@index([organizationId])
@@ -118,6 +120,7 @@ model Quotation {
   gstPercent  Float @default(18)
   gstAmount   Float
   totalAmount Float
+  gstType     String? @default("igst")
 
   status          String  @default("draft")
   notes           String?
@@ -173,8 +176,10 @@ model Invoice {
   gstPercent  Float @default(18)
   gstAmount   Float
   totalAmount Float
+  gstType     String? @default("igst")
 
   status          String  @default("pending")
+  isConfirmed     Boolean @default(false)
   notes           String?
   termsConditions String?
 

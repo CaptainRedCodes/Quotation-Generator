@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
-import { Loader2, Save, User, Building, FileText, Mail, AlertCircle } from 'lucide-react'
+import { Loader2, Save, User, Building, FileText, Mail, AlertCircle, Upload, X } from 'lucide-react'
 import { useOrg } from '@/components/OrgContext'
 
 interface CompanySettings {
@@ -15,6 +15,9 @@ interface CompanySettings {
   msmeNo: string | null
   emailFrom: string | null
   termsConditions: string | null
+  invoiceTermsConditions: string | null
+  quotationTermsConditions: string | null
+  signatureImageUrl: string | null
 }
 
 type Tab = 'company' | 'account' | 'templates' | 'email'
@@ -38,7 +41,10 @@ export default function SettingsPage() {
     cinNo: null,
     msmeNo: null,
     emailFrom: null,
-    termsConditions: null
+    termsConditions: null,
+    invoiceTermsConditions: null,
+    quotationTermsConditions: null,
+    signatureImageUrl: null
   })
 
   const [newPassword, setNewPassword] = useState('')
@@ -100,8 +106,8 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: 'test@example.com',
-          subject: 'Test Email from Adisen Tech Quotation System',
-          message: 'This is a test email to verify Resend configuration.'
+          subject: 'Test Email from Ledgr Quotation System',
+          message: 'This is a test email to verify configuration.'
         })
       })
 
@@ -109,13 +115,44 @@ export default function SettingsPage() {
         setSuccess('Test email sent! Check your inbox.')
         setTimeout(() => setSuccess(null), 3000)
       } else {
-        setError('Failed to send test email. Check your Resend API key.')
+        setError('Failed to send test email.')
       }
     } catch (error) {
       console.error('Error sending test email:', error)
-      setError(error instanceof Error ? error.message : 'Error sending test email.')
+      setError('Error sending test email.')
     } finally {
       setTestEmailSending(false)
+    }
+  }
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await orgFetch('/api/settings/logo', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setSettings({ ...settings, signatureImageUrl: data.logoUrl })
+        setSuccess('Logo uploaded successfully!')
+        setTimeout(() => setSuccess(null), 3000)
+      } else {
+        const data = await res.json()
+        setError(data.error || 'Failed to upload logo')
+      }
+    } catch (error) {
+      console.error('Error uploading logo:', error)
+      setError('Failed to upload logo')
     }
   }
 
@@ -131,7 +168,7 @@ export default function SettingsPage() {
     { id: 'company' as Tab, label: 'Company Details', icon: Building },
     { id: 'account' as Tab, label: 'Account', icon: User },
     { id: 'templates' as Tab, label: 'Templates', icon: FileText },
-    { id: 'email' as Tab, label: 'Email', icon: Mail }
+    { id: 'email' as Tab, label: 'Email(beta)', icon: Mail }
   ]
 
   return (
@@ -173,6 +210,47 @@ export default function SettingsPage() {
 
             {activeTab === 'company' && (
               <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Company Logo
+                  </label>
+                  <div className="flex items-center gap-4">
+                    {settings.signatureImageUrl ? (
+                      <div className="relative">
+                        <img 
+                          src={settings.signatureImageUrl} 
+                          alt="Company Logo" 
+                          className="w-24 h-24 object-contain border border-gray-200 rounded-md"
+                        />
+                        <button
+                          onClick={async () => {
+                            setSettings({ ...settings, signatureImageUrl: null })
+                            await handleSaveSettings()
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center">
+                        <Upload className="w-6 h-6 text-gray-400" />
+                      </div>
+                    )}
+                    <div>
+                      <label className="cursor-pointer px-4 py-2 bg-blue-700 text-white text-sm rounded-md hover:bg-blue-800">
+                        Upload Logo
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1">JPEG, PNG, WebP, SVG (max 2MB)</p>
+                    </div>
+                  </div>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Company Name
@@ -361,16 +439,30 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Default Terms & Conditions
+                    Quotation Terms & Conditions
                   </label>
                   <textarea
-                    value={settings.termsConditions || ''}
-                    onChange={(e) => setSettings({ ...settings, termsConditions: e.target.value })}
+                    value={settings.quotationTermsConditions || ''}
+                    onChange={(e) => setSettings({ ...settings, quotationTermsConditions: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={8}
+                    rows={6}
                   />
                   <p className="text-xs text-slate-500 mt-1">
-                    This will be the default text for new quotations. Each quotation can be edited individually.
+                    Default terms for new quotations. Each quotation can be edited individually.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Invoice Terms & Conditions
+                  </label>
+                  <textarea
+                    value={settings.invoiceTermsConditions || ''}
+                    onChange={(e) => setSettings({ ...settings, invoiceTermsConditions: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={6}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Default terms for invoices created from quotations.
                   </p>
                 </div>
                 <div className="pt-4">
@@ -423,6 +515,7 @@ SMTP_PASS=your-app-password`}
                 <p className="text-xs text-slate-500">
                   Test email will be sent to verify your Gmail SMTP configuration.
                 </p>
+                <p className="text-xs text-slate-500"> <>NOTE: This feature is still in development and wont work for a while</> </p>
               </div>
             )}
           </div>

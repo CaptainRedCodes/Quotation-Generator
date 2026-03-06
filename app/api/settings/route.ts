@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { updateSettingsSchema, changePasswordSchema } from '@/lib/validators'
 import { APP_CONFIG } from '@/lib/constants'
+import { downloadAndCacheLogo, getCachedLogoPath } from '@/lib/storage'
 import {
   requireAuth,
   isAuthError,
@@ -23,6 +24,13 @@ export async function GET(request: Request) {
   const settings = await db.companySettings.findFirst({
     where: { organizationId: orgId },
   })
+
+  if (settings?.signatureImageUrl) {
+    const cachedPath = getCachedLogoPath(orgId)
+    if (!cachedPath) {
+      await downloadAndCacheLogo(orgId, settings.signatureImageUrl)
+    }
+  }
 
   return NextResponse.json({ settings })
 }
@@ -49,7 +57,7 @@ export async function PUT(request: Request) {
       )
     }
 
-    const { companyName, address, gstNo, panNo, cinNo, msmeNo, termsConditions } = validation.data
+    const { companyName, address, gstNo, panNo, cinNo, msmeNo, termsConditions, invoiceTermsConditions, quotationTermsConditions } = validation.data
     const emailFrom = validation.data.emailFrom || APP_CONFIG.defaultEmailFrom
 
     // Find existing settings for this org
@@ -69,7 +77,9 @@ export async function PUT(request: Request) {
           cinNo,
           msmeNo,
           emailFrom,
-          termsConditions: termsConditions || ''
+          termsConditions: termsConditions || null,
+          invoiceTermsConditions: invoiceTermsConditions || null,
+          quotationTermsConditions: quotationTermsConditions || null
         }
       })
     } else {
@@ -84,7 +94,9 @@ export async function PUT(request: Request) {
           cinNo,
           msmeNo,
           emailFrom,
-          termsConditions: termsConditions || ''
+          termsConditions: termsConditions || null,
+          invoiceTermsConditions: invoiceTermsConditions || null,
+          quotationTermsConditions: quotationTermsConditions || null
         }
       })
     }

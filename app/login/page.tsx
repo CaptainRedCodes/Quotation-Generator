@@ -33,6 +33,9 @@ export default function LoginPage() {
         }
 
         try {
+          // Auto-accept any pending invites for this email
+          await fetch('/api/invites/accept', { method: 'POST' })
+
           const orgRes = await fetch('/api/organizations')
           if (orgRes.ok) {
             const orgs = await orgRes.json()
@@ -44,6 +47,7 @@ export default function LoginPage() {
         } catch {
           router.push('/dashboard')
         }
+
       }
     } catch {
       setError('Something went wrong')
@@ -55,9 +59,12 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm p-6 bg-white border rounded-lg">
-        <div className="mb-6 text-center">
+        <div className="mb-6 flex flex-col items-center">
+          <Link href="/" className="self-start text-sm text-gray-500 hover:text-gray-900 transition-colors mb-4 flex items-center gap-1">
+            &larr; Back to Dashboard
+          </Link>
           <Link href="/" className="text-lg font-semibold hover:text-gray-600 transition-colors">
-            Adisen Tech
+            Ledgr
           </Link>
           <p className="text-sm text-gray-500 mt-1">Sign in to continue</p>
         </div>

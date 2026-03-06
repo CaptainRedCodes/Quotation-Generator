@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Loader2, Plus, Pencil, Trash2, X, Package, AlertCircle } from 'lucide-react'
 import { useOrg } from '@/components/OrgContext'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 interface Product {
   id: string
@@ -30,6 +31,8 @@ export default function ProductsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [saving, setSaving] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<{ id: string, name: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -153,13 +156,17 @@ export default function ProductsPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return
+  const confirmDelete = (product: Product) => {
+    setConfirmDeleteId({ id: product.id, name: product.name })
+  }
 
+  const executeDelete = async () => {
+    if (!confirmDeleteId) return
+    setIsDeleting(true)
     setError(null)
     setSuccess(null)
     try {
-      const res = await orgFetch(`/api/products/${id}`, { method: 'DELETE' })
+      const res = await orgFetch(`/api/products/${confirmDeleteId.id}`, { method: 'DELETE' })
       if (res.ok) {
         setSuccess('Product deleted successfully!')
         await loadProducts()
@@ -171,6 +178,9 @@ export default function ProductsPage() {
     } catch (error) {
       console.error('Error deleting product:', error)
       setError(error instanceof Error ? error.message : 'Failed to delete product')
+    } finally {
+      setIsDeleting(false)
+      setConfirmDeleteId(null)
     }
   }
 
@@ -208,6 +218,17 @@ export default function ProductsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ConfirmDialog
+        isOpen={!!confirmDeleteId}
+        title="Delete Product"
+        message={`Are you sure you want to delete "${confirmDeleteId?.name}"? This action cannot be undone.`}
+        confirmText="Delete Product"
+        onConfirm={executeDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+        isLoading={isDeleting}
+        variant="danger"
+      />
+
       <main className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-xl font-semibold">Products</h1>
@@ -241,8 +262,8 @@ export default function ProductsPage() {
                   <div className="flex items-center gap-3">
                     <h2 className="text-lg font-semibold">{product.name}</h2>
                     <span className={`px-2 py-1 text-xs rounded-full ${product.active
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-slate-100 text-slate-600'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-slate-100 text-slate-600'
                       }`}>
                       {product.active ? 'Active' : 'Inactive'}
                     </span>
@@ -261,7 +282,7 @@ export default function ProductsPage() {
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(product.id)}
+                      onClick={() => confirmDelete(product)}
                       className="p-2 text-red-600 hover:text-red-800 border border-slate-300 rounded hover:bg-slate-50"
                     >
                       <Trash2 className="w-4 h-4" />

@@ -1,5 +1,6 @@
 export const APP_CONFIG = {
-  companyPrefix: 'ATPL',
+  companyPrefix: 'LEDGR',
+  companyName: 'Ledgr',
   defaultGstPercent: 18,
   defaultCurrency: 'INR',
   currencySymbol: '₹',
@@ -37,7 +38,7 @@ export const PDF_CONFIG = {
 } as const
 
 export const COLUMNS = {
-  sac: 310,
+  hsn: 310,
   qty: 385,
   unit: 430,
   amt: 500,

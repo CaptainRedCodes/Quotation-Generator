@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useOrg } from '@/components/OrgContext'
 import { Loader2, UserPlus, Trash2, Crown, ArrowLeft, Users, Shield, Mail, RefreshCw, X, Copy, Check } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 interface Member {
     id: string
@@ -45,6 +46,14 @@ export default function OrganizationManagePage() {
     const [activeTab, setActiveTab] = useState<'members' | 'invites'>('members')
     const [credentials, setCredentials] = useState<InviteCredentials | null>(null)
     const [copiedField, setCopiedField] = useState<string | null>(null)
+    const [confirmAction, setConfirmAction] = useState<{
+        isOpen: boolean
+        type: 'cancel-invite' | 'remove-member' | null
+        id: string
+        name: string
+    }>({ isOpen: false, type: null, id: '', name: '' })
+    const [isConfirming, setIsConfirming] = useState(false)
+    const [actionLoading, setActionLoading] = useState<string | null>(null)
 
     const org = userOrgs.find((o) => o.id === orgId)
 
@@ -170,11 +179,18 @@ export default function OrganizationManagePage() {
             }
         } catch {
             setError('Failed to resend invite')
+        } finally {
+            setActionLoading(null)
         }
     }
 
-    const handleCancelInvite = async (inviteId: string) => {
-        if (!confirm('Cancel this invitation?')) return
+    const confirmCancelInvite = (inviteId: string) => {
+        setConfirmAction({ isOpen: true, type: 'cancel-invite', id: inviteId, name: 'this invitation' })
+    }
+
+    const executeCancelInvite = async () => {
+        setIsConfirming(true)
+        const { id: inviteId } = confirmAction
         try {
             const res = await fetch(`/api/invites/${inviteId}`, {
                 method: 'PUT',
@@ -182,18 +198,27 @@ export default function OrganizationManagePage() {
                 body: JSON.stringify({ inviteId, action: 'cancel' }),
             })
             if (res.ok) {
-                setInvites(invites.filter(i => i.id !== inviteId))
+                // Refetch invites so the cancelled one disappears and we get latest server state
+                fetchInvites()
             } else {
                 const err = await res.json()
                 setError(err.error || 'Failed to cancel invite')
             }
         } catch {
             setError('Failed to cancel invite')
+        } finally {
+            setIsConfirming(false)
+            setConfirmAction({ isOpen: false, type: null, id: '', name: '' })
         }
     }
 
-    const handleRemove = async (userId: string, name: string) => {
-        if (!confirm(`Remove ${name} from this organization?`)) return
+    const confirmRemoveMember = (userId: string, name: string) => {
+        setConfirmAction({ isOpen: true, type: 'remove-member', id: userId, name })
+    }
+
+    const executeRemoveMember = async () => {
+        setIsConfirming(true)
+        const { id: userId } = confirmAction
 
         try {
             const res = await fetch(`/api/organizations/${orgId}/members/${userId}`, {
@@ -208,6 +233,9 @@ export default function OrganizationManagePage() {
             }
         } catch {
             setError('Failed to remove member')
+        } finally {
+            setIsConfirming(false)
+            setConfirmAction({ isOpen: false, type: null, id: '', name: '' })
         }
     }
 
@@ -221,6 +249,20 @@ export default function OrganizationManagePage() {
 
     return (
         <div className="min-h-screen bg-gray-50">
+            {/* Custom Confirm Dialog */}
+            <ConfirmDialog
+                isOpen={confirmAction.isOpen}
+                title={confirmAction.type === 'cancel-invite' ? 'Cancel Invitation' : 'Remove Member'}
+                message={confirmAction.type === 'cancel-invite'
+                    ? 'Are you sure you want to cancel this invitation? The user will no longer be able to join the organization.'
+                    : `Are you sure you want to remove ${confirmAction.name} from this organization? They will lose all access immediately.`}
+                confirmText={confirmAction.type === 'cancel-invite' ? 'Cancel Invite' : 'Remove Member'}
+                onConfirm={confirmAction.type === 'cancel-invite' ? executeCancelInvite : executeRemoveMember}
+                onCancel={() => setConfirmAction({ isOpen: false, type: null, id: '', name: '' })}
+                isLoading={isConfirming}
+                variant="danger"
+            />
+
             {/* Credentials Modal */}
             {credentials && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -378,8 +420,8 @@ export default function OrganizationManagePage() {
                         <button
                             onClick={() => setActiveTab('members')}
                             className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === 'members'
-                                    ? 'border-black text-black'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                                ? 'border-black text-black'
+                                : 'border-transparent text-gray-500 hover:text-gray-700'
                                 }`}
                         >
                             <Users className="w-4 h-4" />
@@ -388,8 +430,8 @@ export default function OrganizationManagePage() {
                         <button
                             onClick={() => setActiveTab('invites')}
                             className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === 'invites'
-                                    ? 'border-black text-black'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                                ? 'border-black text-black'
+                                : 'border-transparent text-gray-500 hover:text-gray-700'
                                 }`}
                         >
                             <Mail className="w-4 h-4" />
@@ -444,11 +486,12 @@ export default function OrganizationManagePage() {
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <button
-                                                        onClick={() => handleRemove(member.userId, member.name || member.email)}
-                                                        className="p-1 hover:bg-red-50 text-red-500 rounded transition-colors"
+                                                        onClick={() => confirmRemoveMember(member.userId, member.name || member.email)}
+                                                        disabled={actionLoading === member.userId}
+                                                        className="p-1 hover:bg-red-50 text-red-500 rounded transition-colors disabled:opacity-50"
                                                         title="Remove member"
                                                     >
-                                                        <Trash2 className="w-4 h-4" />
+                                                        {actionLoading === member.userId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                                                     </button>
                                                 </td>
                                             </tr>
@@ -502,14 +545,18 @@ export default function OrganizationManagePage() {
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center gap-1">
                                                         <button
-                                                            onClick={() => handleResendInvite(invite.id)}
-                                                            className="p-1 hover:bg-blue-50 text-blue-500 rounded transition-colors"
+                                                            onClick={async () => {
+                                                                setActionLoading(invite.id)
+                                                                await handleResendInvite(invite.id)
+                                                            }}
+                                                            disabled={actionLoading === invite.id}
+                                                            className="p-1 hover:bg-blue-50 text-blue-500 rounded transition-colors disabled:opacity-50"
                                                             title="Resend invite"
                                                         >
-                                                            <RefreshCw className="w-4 h-4" />
+                                                            {actionLoading === invite.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                                                         </button>
                                                         <button
-                                                            onClick={() => handleCancelInvite(invite.id)}
+                                                            onClick={() => confirmCancelInvite(invite.id)}
                                                             className="p-1 hover:bg-red-50 text-red-500 rounded transition-colors"
                                                             title="Cancel invite"
                                                         >

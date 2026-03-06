@@ -68,13 +68,16 @@ export async function PUT(
 
     const body = await request.json()
 
-    // For status-only updates, use simpler validation
-    if (body.status && Object.keys(body).length === 2 && body.status) {
-      const invoice = await db.invoice.update({
+    // For status-only or confirmation updates, use simpler validation
+    if ((body.status !== undefined || body.isConfirmed !== undefined) && Object.keys(body).length <= 2) {
+      const dbInvoice = await db.invoice.update({
         where: { id },
-        data: { status: body.status }
+        data: {
+          ...(body.status !== undefined ? { status: body.status } : {}),
+          ...(body.isConfirmed !== undefined ? { isConfirmed: body.isConfirmed } : {})
+        }
       })
-      return NextResponse.json(invoice)
+      return NextResponse.json(dbInvoice)
     }
 
     const validation = updateInvoiceSchema.safeParse(body)
@@ -85,7 +88,7 @@ export async function PUT(
       )
     }
 
-    const { invoiceNo, invoiceDate, toCompanyName, toAddress, toGstNo, toPhone, toEmail, subtotal, discountType, discountValue, discountAmount, gstPercent, gstAmount, totalAmount, status, notes, termsConditions, items } = validation.data
+    const { invoiceNo, invoiceDate, toCompanyName, toAddress, toGstNo, toPhone, toEmail, subtotal, discountType, discountValue, discountAmount, gstPercent, gstAmount, totalAmount, status, notes, termsConditions, items, gstType } = validation.data
 
     // Only delete and recreate items if items are provided
     if (items && items.length > 0) {
@@ -106,6 +109,7 @@ export async function PUT(
         discountType,
         discountValue,
         discountAmount,
+        gstType,
         gstPercent,
         gstAmount,
         totalAmount,

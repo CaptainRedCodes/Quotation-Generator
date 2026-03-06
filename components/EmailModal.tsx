@@ -40,7 +40,7 @@ export function EmailModal({
   // Multiple CC recipients
   const [ccList, setCcList] = useState<string[]>([''])
 
-  const [subject, setSubject] = useState(`Quotation ${quotationNo} from Adisen Tech Pvt Ltd`)
+  const [subject, setSubject] = useState(`Quotation ${quotationNo}`)
   const [message, setMessage] = useState(
     `Dear Sir/Madam,
 
@@ -53,8 +53,7 @@ Total: ₹${formatIndianCurrency(total)}
 Please feel free to reach out for any queries.
 
 Warm regards,
-${userName}
-Adisen Tech Pvt Ltd`
+${userName}`
   )
 
   const updateList = (
