@@ -93,6 +93,13 @@ export default function DashboardPage() {
     }
   }, [pagination.page, activeTab])
 
+  // Redirect ORG_ADMIN from this dashboard page
+  useEffect(() => {
+    if (status === 'authenticated' && userRole === 'ORG_ADMIN') {
+      router.replace('/dashboard/organizations')
+    }
+  }, [status, userRole, router])
+
   async function loadData() {
     if (!activeOrg) return
     setLoading(true)
@@ -257,12 +264,6 @@ export default function DashboardPage() {
 
   const statuses = activeTab === 'quotations' ? QUOTATION_STATUSES : INVOICE_STATUSES
 
-  // Add this useEffect near the top with the other useEffects
-  useEffect(() => {
-    if (status === 'authenticated' && userRole === 'ORG_ADMIN') {
-      router.replace('/dashboard/organizations')
-    }
-  }, [status, userRole, router])
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Delete confirm */}

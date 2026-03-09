@@ -7,7 +7,8 @@ import { Loader2, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react'
 
 export default function ResetPasswordPage() {
     const router = useRouter()
-    const [accessToken, setAccessToken] = useState('')
+    const [token, setToken] = useState('')
+    const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
     const [loading, setLoading] = useState(false)
@@ -15,26 +16,16 @@ export default function ResetPasswordPage() {
     const [error, setError] = useState('')
     const [tokenError, setTokenError] = useState(false)
 
-    // Extract access_token from URL hash fragment (Supabase puts it there after recovery verification)
     useEffect(() => {
         const params = new URLSearchParams(window.location.search)
-        const token = params.get('token')
+        const urlToken = params.get('token')
+        const urlEmail = params.get('email')
 
-        if (token) {
-            setAccessToken(token)
+        if (urlToken) {
+            setToken(urlToken)
+            setEmail(urlEmail || '')
         } else {
-            const hash = window.location.hash.substring(1)
-            const hashParams = new URLSearchParams(hash)
-            const hashToken = hashParams.get('access_token')
-            const type = hashParams.get('type')
-
-            if (hashToken && type === 'recovery') {
-                setAccessToken(hashToken)
-            } else if (hash || token) {
-                setTokenError(true)
-            } else {
-                setTokenError(true)
-            }
+            setTokenError(true)
         }
     }, [])
 
@@ -58,7 +49,7 @@ export default function ResetPasswordPage() {
             const res = await fetch('/api/auth/reset-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ accessToken, newPassword: password }),
+                body: JSON.stringify({ token, email, newPassword: password }),
             })
 
             if (res.ok) {

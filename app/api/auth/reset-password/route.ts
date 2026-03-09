@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
     try {
-        const { accessToken, newPassword } = await request.json()
+        const body = await request.json()
+        const { token, email, newPassword } = body
 
-        if (!accessToken || !newPassword) {
+        if (!token || !email || !newPassword) {
             return NextResponse.json(
-                { error: 'Access token and new password are required' },
+                { error: 'Token, email and new password are required' },
                 { status: 400 }
             )
         }
@@ -23,6 +24,35 @@ export async function POST(request: Request) {
 
         if (!supabaseUrl || !supabaseAnonKey) {
             return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+        }
+
+        const verifyRes = await fetch(`${supabaseUrl}/auth/v1/verify`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': supabaseAnonKey,
+            },
+            body: JSON.stringify({
+                token_hash: token,
+                type: 'recovery',
+            }),
+        })
+
+        if (!verifyRes.ok) {
+            return NextResponse.json(
+                { error: 'Invalid or expired recovery token' },
+                { status: 400 }
+            )
+        }
+
+        const verifyData = await verifyRes.json()
+        const accessToken = verifyData.access_token
+
+        if (!accessToken) {
+            return NextResponse.json(
+                { error: 'Failed to verify recovery token' },
+                { status: 400 }
+            )
         }
 
         const updateRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
