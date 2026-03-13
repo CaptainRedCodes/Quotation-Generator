@@ -60,7 +60,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm p-6 bg-white border rounded-lg">
         <div className="mb-6 flex flex-col items-center">
-          <Link href="/" className="self-start text-sm text-gray-500 hover:text-gray-900 transition-colors mb-4 flex items-center gap-1">
+          <Link href="/dashboard" className="self-start text-sm text-gray-500 hover:text-gray-900 transition-colors mb-4 flex items-center gap-1">
             &larr; Back to Dashboard
           </Link>
           <Link href="/" className="text-lg font-semibold hover:text-gray-600 transition-colors">
