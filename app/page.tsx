@@ -58,7 +58,7 @@ export default function HomePage() {
             </p>
             <div className="animate-fade-in-up delay-300">
               <Link
-                href="/login"
+                href="/dashboard"
                 className="inline-flex items-center gap-2 px-8 py-4 bg-black text-white font-medium rounded-lg hover:bg-gray-800 transition-all hover:-translate-y-0.5 shadow-sm hover:shadow-md"
               >
                 Get started
